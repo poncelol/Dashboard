@@ -1,0 +1,7 @@
+# Datos y credenciales: nunca se suben al repositorio
+*.xlsx
+*.xls
+.streamlit/secrets.toml
+
+__pycache__/
+*.pyc
