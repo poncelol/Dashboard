@@ -1067,11 +1067,9 @@ prov_n = datos.groupby("CVE")["ART_ID"].nunique().sort_values(ascending=False)
 nombre_prov = datos.groupby("CVE")["PROV_CORTO"].first()
 prods = (datos.groupby("PROD").agg(nombre=("PRODUCTO", "first"), art=("ART_ID", "nunique"), prov=("CVE", "nunique"))
          .sort_values(["art", "nombre"], ascending=[False, True]))
-regional = datos[datos["ALCANCE"] == "Regional"]
-reg_regional = por_region(regional)
 marcas = conteo(datos, "MARCA")
-inv = conteo(datos, "INVENTARIO")
-nal = n_art(datos[datos["ALCANCE"] == "Nacional"]) / total
+prov_marcas = datos.groupby("PROV_CORTO")["MARCA"].nunique().sort_values(ascending=False)
+marca_prods = datos.groupby("MARCA")["PROD"].nunique().sort_values(ascending=False)
 mas_prov = prods.sort_values(["prov", "art"], ascending=False).iloc[0]
 
 hallazgos = [
@@ -1080,15 +1078,13 @@ hallazgos = [
     (T["verde"], "producto", f"El producto con más artículos es <b>{escape(prods['nombre'].iloc[0])}</b>, "
                              f"con <b>{prods['art'].iloc[0]:,}</b>."),
     (T["oro"], "marca", f"La marca con más artículos es <b>{escape(marcas.index[0])}</b>, con <b>{marcas.iloc[0]:,}</b>."),
-    (T["azul"], "mapa", f"<b>{round(nal * 10):.0f} de cada 10</b> artículos llegan a <b>todo el país</b>."),
-    (T["verde_claro"], "pastel", f"La mayoría de los artículos son inventario <b>{escape(inv.index[0])}</b> "
-                                 f"({inv.iloc[0] / total:.0%})."),
+    (T["azul"], "marca", f"<b>{escape(prov_marcas.index[0])}</b> es el proveedor con más marcas: maneja "
+                         f"<b>{prov_marcas.iloc[0]:,}</b>."),
+    (T["verde_claro"], "producto", f"<b>{escape(marca_prods.index[0])}</b> es la marca con más productos distintos: "
+                                   f"<b>{marca_prods.iloc[0]:,}</b>."),
     (GUINDA, "estrella", f"<b>{escape(mas_prov['nombre'])}</b> es el producto con más proveedores: "
                          f"<b>{mas_prov['prov']:,}</b> lo surten."),
 ]
-if n_art(regional):
-    hallazgos[3] = (T["azul"], "mapa", f"<b>{round(nal * 10):.0f} de cada 10</b> artículos llegan a <b>todo el país</b>; "
-                                       f"de los regionales, la región con más es <b>{REGIONES[reg_regional.idxmax()][0]}</b>.")
 
 md('<nav class="indice">' + "".join(f'<a href="#{k}"><span>{i}</span>{v}</a>'
                                     for i, (k, v) in enumerate(SECCIONES.items(), start=1)) + "</nav>")
