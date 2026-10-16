@@ -544,6 +544,9 @@ div[class*="st-key-regclic_"] button, div[class*="st-key-leyclic_"] button { opa
 .estrellas li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--linea);
   font-size: .82rem; color: var(--texto2); }
 .estrellas li:last-child { border-bottom: none; }
+.estrellas.lado { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 0; }
+.estrellas.lado li { border: 1px solid var(--borde); border-radius: 10px; padding: 10px 12px; background: var(--sutil); }
+@media (max-width: 640px) { .estrellas.lado { grid-template-columns: 1fr; } }
 .estrellas svg { color: var(--oro); flex-shrink: 0; margin-top: 1px; }
 .estrellas .l { display: block; font-size: .68rem; font-weight: 600; color: var(--tenue); text-transform: uppercase;
   letter-spacing: .04em; }
@@ -761,7 +764,7 @@ RAIZ = "__todos__"
 
 
 def dona_clic(serie, clave, destino, alto=240, colores=None, max_items=9, unidad="artículos", detalle=None,
-              vaciable=True, centro=None, base=None, agrupar=True):
+              vaciable=True, centro=None, base=None, agrupar=True, unidad_centro=None, alto_ley=None):
     """Dona en la que se puede hacer clic; el elemento elegido queda en st.session_state[destino].
 
     Streamlit solo avisa de los clics en barras, puntos y gráficas jerárquicas (no en go.Pie), así que la
@@ -769,7 +772,9 @@ def dona_clic(serie, clave, destino, alto=240, colores=None, max_items=9, unidad
     el centro (o doble clic) quita la selección, salvo con vaciable=False.
     centro: número al centro (p. ej. artículos distintos, que no es la suma de los sectores si un artículo
     está en varios); base: total para los porcentajes de la leyenda; agrupar=False deja solo los
-    max_items primeros, sin sector «Otros». La leyenda también se puede elegir con un clic en cada renglón.
+    max_items primeros, sin sector «Otros»; unidad_centro: texto bajo el número del centro si cuenta otra cosa
+    (p. ej. productos); alto_ley: alto máximo de la leyenda, con desplazamiento.
+    La leyenda también se puede elegir con un clic en cada renglón.
     """
     s = serie[serie > 0].sort_values(ascending=False)
     if len(s) > max_items and not agrupar:
@@ -797,7 +802,8 @@ def dona_clic(serie, clave, destino, alto=240, colores=None, max_items=9, unidad
         values=[total, *[int(v) for v in s.values]], branchvalues="total", sort=False,
         marker=dict(colors=[T["card"], *rellenos], line=dict(color=T["card"], width=3)),
         leaf=dict(opacity=1),
-        texttemplate=[f"<b>{centro:,}</b><br><span style='font-size:11px'>{unidad}</span>", *[""] * len(s)],
+        texttemplate=[f"<b>{centro:,}</b><br><span style='font-size:11px'>{unidad_centro or unidad}</span>",
+                      *[""] * len(s)],
         insidetextorientation="horizontal",
         textfont=dict(family="Inter, sans-serif", size=20, color=T["texto"]),
         customdata=[0, *[v / base for v in s.values]],
@@ -824,7 +830,7 @@ def dona_clic(serie, clave, destino, alto=240, colores=None, max_items=9, unidad
                     config={"displayModeBar": False})
     md(f'<div class="pista-clic">{"Clic en el centro o en el mismo renglón para ver todo" if sel and vaciable else "Haz clic en un color o en un renglón para ver el detalle"}</div>')
     detalle = detalle or {}
-    with st.container(key=f"leyenda_{clave}"):
+    with st.container(key=f"leyenda_{clave}", height=alto_ley if alto_ley else "content", border=False):
         for n, (k, v, c) in enumerate(zip(nombres, s.values, cols)):
             with st.container(key=f"leyitem_{clave}_{n}{'__sel' if k == sel else ''}"):
                 md(f'<div class="ley"><i style="background:{c}"></i><span class="n" title="{escape(k)}">{escape(k)}</span>'
@@ -1203,27 +1209,32 @@ with a:
     with tarjeta(f"Mapa y productos regionales · {nombre_reg}", "u_mapa",
                  "Pasa el cursor sobre un estado para ver el producto estrella de su región; haz clic en un producto "
                  "de la dona para ver solo sus artículos abajo.", extra=f"{n_art(d_reg):,} artículos regionales"):
+        g = conteo(d_reg, "PRODUCTO")
+        i = None
+        if sel_reg:
+            i = info_reg.get(sel_reg)
+        elif len(g):
+            arts = d_reg[d_reg["PRODUCTO"] == g.index[0]].groupby(["ARTICULO", "PROV_CORTO"]).size()
+            arts = arts.sort_index().sort_values(ascending=False, kind="stable")
+            i = dict(producto=g.index[0], n_estrella=int(g.iloc[0]), n_prod=len(g),
+                     articulo=arts.index[0][0], proveedor=arts.index[0][1])
         m, d = st.columns([3, 2], gap="small")
         with m:
             mapa(info_reg, "u_mapa_g", resaltar=sel_reg, alto=430)
+            # Producto y artículo estrella, uno junto al otro debajo del mapa
+            if i:
+                md(f'<ul class="estrellas lado"><li>{svg("estrella", 16)}<div><span class="l">Producto estrella</span>'
+                   f'<b>{escape(i["producto"])}</b><small>{i["n_estrella"]:,} artículos · de {i["n_prod"]:,} productos'
+                   f'</small></div></li><li>{svg("estrella", 16)}<div><span class="l">Artículo estrella</span>'
+                   f'<b>{escape(i["articulo"])}</b><small>{escape(i["proveedor"])}</small></div></li></ul>')
         with d:
             if d_reg.empty:
                 md('<div class="lb-mas">Esta región no tiene artículos regionales.</div>')
             else:
-                g = conteo(d_reg, "PRODUCTO")
-                if sel_reg:
-                    i = info_reg[sel_reg]
-                else:
-                    arts = d_reg[d_reg["PRODUCTO"] == g.index[0]].groupby(["ARTICULO", "PROV_CORTO"]).size()
-                    arts = arts.sort_index().sort_values(ascending=False, kind="stable")
-                    i = dict(producto=g.index[0], n_estrella=int(g.iloc[0]), n_prod=len(g),
-                             articulo=arts.index[0][0], proveedor=arts.index[0][1])
-                dona_clic(g, f"u_dona_{sel_reg or 'todas'}", clave_up, alto=230, max_items=8, centro=n_art(d_reg),
-)
-                md(f'<ul class="estrellas"><li>{svg("estrella", 16)}<div><span class="l">Producto estrella</span>'
-                   f'<b>{escape(i["producto"])}</b><small>{i["n_estrella"]:,} artículos · de {i["n_prod"]:,} productos'
-                   f'</small></div></li><li>{svg("estrella", 16)}<div><span class="l">Artículo estrella</span>'
-                   f'<b>{escape(i["articulo"])}</b><small>{escape(i["proveedor"])}</small></div></li></ul>')
+                # Todos los productos, sin agrupar en «Otros»; al centro, cuántos productos son
+                dona_clic(g, f"u_dona_{sel_reg or 'todas'}", clave_up, alto=230, max_items=len(g), agrupar=False,
+                          centro=len(g), unidad_centro="productos", detalle={k: "art." for k in g.index},
+                          alto_ley=330)
 with b:
     with tarjeta("Regiones y unidades operativas", "u_botones", "Haz clic en un recuadro.", extra=f"{len(REGIONES)} regiones"):
         with st.container(height=560, border=False):
