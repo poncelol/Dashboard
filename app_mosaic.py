@@ -331,6 +331,7 @@ st.query_params["tema"] = "oscuro" if oscuro else "claro"
 
 T = TEMAS["oscuro" if oscuro else "claro"]
 COLOR_REGION = dict(zip(REGIONES, T["regiones"]))
+NAL, NEGRO = "NAL", "#111111"   # botón «Nacional» de la sección 4: todo el mapa en negro
 COLOR_ALCANCE = {"Nacional": T["verde"], "Regional": T["oro"], "Sin dato": T["tenue"]}
 COLOR_INV = {"PAR": T["acento"], "Oferta": T["azul"], "301": T["verde"], "75": T["oro"], "Sin dato": T["tenue"]}
 
@@ -858,7 +859,8 @@ def estrellas_region(todos) -> dict:
 
 def mapa(info: dict, clave, resaltar=None, alto=440):
     """Estados coloreados por gerencia regional; al pasar el cursor se ve el producto estrella de la región.
-    Con resaltar, las demás regiones quedan en gris."""
+    Con resaltar=sigla, las demás regiones quedan en gris; con resaltar=NAL, todo el país va en negro."""
+    nacional = resaltar == NAL
     gj = geo_estados()
     if not gj:
         st.caption(f"No encontré {MAPA.name} junto a la app: el mapa no se puede dibujar.")
@@ -866,7 +868,7 @@ def mapa(info: dict, clave, resaltar=None, alto=440):
     fig = go.Figure()
     for sig, (nombre, clave_r, unidades) in REGIONES.items():
         estados = list(dict.fromkeys(e for _, e, _ in unidades))
-        color = T["otros"] if resaltar and sig != resaltar else COLOR_REGION[sig]
+        color = NEGRO if nacional else T["otros"] if resaltar and sig != resaltar else COLOR_REGION[sig]
         uos = {e: ", ".join(u.removeprefix("U.O. ") for u, ee, _ in unidades if ee == e) for e in estados}
         i = info.get(sig)
         texto = (f"★ <b>{escape(i['producto'])}</b><br>{i['n_prod']:,} productos regionales" if i
@@ -882,15 +884,16 @@ def mapa(info: dict, clave, resaltar=None, alto=440):
     if sin:   # p. ej. Ciudad de México, que no aparece en la estructura operativa
         fig.add_trace(go.Choropleth(
             geojson=gj, featureidkey="properties.name", locations=sin, z=[1] * len(sin),
-            colorscale=[[0, T["sutil"]], [1, T["sutil"]]], showscale=False,
-            marker_line_color=T["borde"], marker_line_width=1,
+            colorscale=[[0, NEGRO if nacional else T["sutil"]], [1, NEGRO if nacional else T["sutil"]]],
+            showscale=False, marker_line_color=T["card"] if nacional else T["borde"], marker_line_width=1,
             hovertemplate="<b>%{location}</b><br>Sin unidad operativa en la estructura<extra></extra>"))
     centros = centros_region()
     siglas = [s for s in REGIONES if s in centros]
     fig.add_trace(go.Scattergeo(
         lon=[centros[s][0] for s in siglas], lat=[centros[s][1] for s in siglas], text=siglas, mode="text",
         textfont=dict(family="Inter, sans-serif", size=11,
-                      color=[T["texto3"] if resaltar and s != resaltar else T["card"] for s in siglas]),
+                      color=["#ffffff" if nacional else T["texto3"] if resaltar and s != resaltar else T["card"]
+                             for s in siglas]),
         hoverinfo="skip"))
     fig.update_geos(fitbounds="locations", visible=False, bgcolor="rgba(0,0,0,0)", projection_type="mercator")
     estilo(fig, alto)
@@ -1183,13 +1186,20 @@ seccion("unidades", f"Haz clic en una <b>región</b> (el recuadro con sus unidad
         f"y la lista de sus artículos. Son {len(REGIONES)} gerencias regionales y {N_UNIDADES} unidades operativas.")
 info_reg = estrellas_region(datos)
 sel_reg = st.session_state.get("sel_region")
-sel_reg = sel_reg if sel_reg in REGIONES else None
+sel_reg = sel_reg if sel_reg in REGIONES or sel_reg == NAL else None
 clave_up = f"sel_uprod_{sel_reg or 'todas'}"
 regional = datos[datos["ALCANCE"] == "Regional"]
-d_reg = regional[regional["REGIONES"].map(lambda r: sel_reg in r)] if sel_reg else regional
+if sel_reg == NAL:
+    d_reg = datos[datos["ALCANCE"] == "Nacional"]
+elif sel_reg:
+    d_reg = regional[regional["REGIONES"].map(lambda r: sel_reg in r)]
+else:
+    d_reg = regional
+tipo_art = "nacionales" if sel_reg == NAL else "regionales"
 sel_up = st.session_state.get(clave_up)
 sel_up = sel_up if sel_up in set(d_reg["PRODUCTO"]) else None
-nombre_reg = f"{sel_reg} · {REGIONES[sel_reg][0]}" if sel_reg else "todo el país"
+nombre_reg = ("Nacional" if sel_reg == NAL else f"{sel_reg} · {REGIONES[sel_reg][0]}" if sel_reg
+              else "todo el país")
 if sel_reg or sel_up:
     barra_seleccion("reg", [x for x in [nombre_reg if sel_reg else None, sel_up] if x], ["sel_region", clave_up])
     st.write("")
@@ -1202,12 +1212,12 @@ def elegir_region(sig):
 
 a, b = st.columns([7, 3], gap="medium")
 with a:
-    with tarjeta(f"Mapa y productos regionales · {nombre_reg}", "u_mapa",
+    with tarjeta(f"Mapa y productos {tipo_art} · {nombre_reg}", "u_mapa",
                  "Pasa el cursor sobre un estado para ver el producto estrella de su región; haz clic en un producto "
-                 "de la dona para ver solo sus artículos abajo.", extra=f"{n_art(d_reg):,} artículos regionales"):
+                 "de la dona para ver solo sus artículos abajo.", extra=f"{n_art(d_reg):,} artículos {tipo_art}"):
         g = conteo(d_reg, "PRODUCTO")
         i = None
-        if sel_reg:
+        if sel_reg in REGIONES:
             i = info_reg.get(sel_reg)
         elif len(g):
             arts = d_reg[d_reg["PRODUCTO"] == g.index[0]].groupby(["ARTICULO", "PROV_CORTO"]).size()
@@ -1234,6 +1244,12 @@ with a:
 with b:
     with tarjeta("Regiones y unidades operativas", "u_botones", "Haz clic en un recuadro.", extra=f"{len(REGIONES)} regiones"):
         with st.container(height=560, border=False):
+            with st.container(key=f"regbtn_{NAL}_{'on' if sel_reg == NAL else 'off'}"):
+                md(f'<div class="rb-h"><span class="sig" style="background:{NEGRO};color:#fff">{NAL}</span>'
+                   f'<b>Nacional</b><small>todo el país</small></div>'
+                   f'<div class="rb-u">Artículos que llegan a las {len(REGIONES)} regiones y sus {N_UNIDADES} '
+                   f'unidades operativas</div>')
+                st.button("Elegir Nacional", key=f"regclic_{NAL}", on_click=elegir_region, args=(NAL,))
             for sig, (nombre, clave_r, unidades) in REGIONES.items():
                 with st.container(key=f"regbtn_{sig}_{'on' if sig == sel_reg else 'off'}"):
                     md(f'<div class="rb-h"><span class="sig" style="background:{COLOR_REGION[sig]}">{sig}</span>'
@@ -1243,12 +1259,13 @@ with b:
 
 st.write("")
 da_reg = d_reg[d_reg["PRODUCTO"] == sel_up] if sel_up else d_reg
-with tarjeta(f"Artículos regionales · {nombre_reg}" + (f" · {sel_up}" if sel_up else ""), "u_tabla",
+with tarjeta(f"Artículos {tipo_art} · {nombre_reg}" + (f" · {sel_up}" if sel_up else ""), "u_tabla",
+             "Artículos con cobertura nacional: llegan a todas las regiones." if sel_reg == NAL else
              "Artículos con cobertura regional que llegan a esta región (los nacionales llegan a todas).",
              extra=f"{n_art(da_reg):,} artículos"):
     filas = [[f"{escape(r.ARTICULO)}<small>ART. {escape(r.ART_ID)}</small>", escape(r.PRODUCTO), escape(r.MARCA),
               escape(r.PRESENTACION), escape(r.PROV_CORTO), chip(r.INVENTARIO, COLOR_INV.get(r.INVENTARIO, T["texto3"])),
-              escape(" ".join(r.REGIONES)), dinero(r.COSTO_UNIT)]
+              "Nacional" if r.ALCANCE == "Nacional" else escape(" ".join(r.REGIONES)), dinero(r.COSTO_UNIT)]
              for r in da_reg.sort_values(["PRODUCTO", "ARTICULO", "ART_ID"]).itertuples()]
     tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Regiones", "Costo unitario"],
           filas, numericas=(7,), alto=440)
