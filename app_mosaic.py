@@ -1229,9 +1229,9 @@ with a:
             mapa(info_reg, "u_mapa_g", resaltar=sel_reg, alto=430)
             # Producto y artículo estrella, uno junto al otro debajo del mapa
             if i:
-                md(f'<ul class="estrellas lado"><li>{svg("estrella", 16)}<div><span class="l">Producto estrella</span>'
+                md(f'<ul class="estrellas lado"><li>{svg("estrella", 16)}<div>'
                    f'<b>{escape(i["producto"])}</b><small>{i["n_estrella"]:,} artículos · de {i["n_prod"]:,} productos'
-                   f'</small></div></li><li>{svg("estrella", 16)}<div><span class="l">Artículo estrella</span>'
+                   f'</small></div></li><li>{svg("estrella", 16)}<div>'
                    f'<b>{escape(i["articulo"])}</b><small>{escape(i["proveedor"])}</small></div></li></ul>')
         with d:
             if d_reg.empty:
