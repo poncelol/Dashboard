@@ -1216,23 +1216,9 @@ with a:
                  "Pasa el cursor sobre un estado para ver el producto estrella de su región; haz clic en un producto "
                  "de la dona para ver solo sus artículos abajo.", extra=f"{n_art(d_reg):,} artículos {tipo_art}"):
         g = conteo(d_reg, "PRODUCTO")
-        i = None
-        if sel_reg in REGIONES:
-            i = info_reg.get(sel_reg)
-        elif len(g):
-            arts = d_reg[d_reg["PRODUCTO"] == g.index[0]].groupby(["ARTICULO", "PROV_CORTO"]).size()
-            arts = arts.sort_index().sort_values(ascending=False, kind="stable")
-            i = dict(producto=g.index[0], n_estrella=int(g.iloc[0]), n_prod=len(g),
-                     articulo=arts.index[0][0], proveedor=arts.index[0][1])
         m, d = st.columns([3, 2], gap="small")
         with m:
             mapa(info_reg, "u_mapa_g", resaltar=sel_reg, alto=430)
-            # Producto y artículo estrella, uno junto al otro debajo del mapa
-            if i:
-                md(f'<ul class="estrellas lado"><li>{svg("estrella", 16)}<div>'
-                   f'<b>{escape(i["producto"])}</b><small>{i["n_estrella"]:,} artículos · de {i["n_prod"]:,} productos'
-                   f'</small></div></li><li>{svg("estrella", 16)}<div>'
-                   f'<b>{escape(i["articulo"])}</b><small>{escape(i["proveedor"])}</small></div></li></ul>')
         with d:
             if d_reg.empty:
                 md('<div class="lb-mas">Esta región no tiene artículos regionales.</div>')
