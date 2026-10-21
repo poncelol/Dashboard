@@ -522,6 +522,8 @@ div[class*="st-key-leyitem_"] [data-testid="stMarkdownContainer"] { margin-botto
 .ley .n { flex: 1; min-width: 0; color: var(--texto); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ley .v { color: var(--texto2); font-weight: 600; white-space: nowrap; }
 .ley small { color: var(--tenue); font-weight: 500; margin-left: 6px; }
+.ley .ovalo { font-size: .74rem; font-weight: 600; color: var(--texto); white-space: nowrap; border: 1px solid;
+  border-radius: 999px; padding: 1px 9px; }
 .ley em { font-style: normal; color: var(--tenue); font-weight: 500; display: inline-block; min-width: 44px; text-align: right; }
 .pista-clic { font-size: .75rem; color: var(--tenue); text-align: center; margin-top: -6px; }
 
@@ -772,7 +774,7 @@ RAIZ = "__todos__"
 
 
 def dona_clic(serie, clave, destino, alto=240, colores=None, max_items=9, unidad="artículos", detalle=None,
-              vaciable=True, centro=None, base=None, agrupar=True, unidad_centro=None, alto_ley=None):
+              vaciable=True, centro=None, base=None, agrupar=True, unidad_centro=None, alto_ley=None, ovalo=None):
     """Dona en la que se puede hacer clic; el elemento elegido queda en st.session_state[destino].
 
     Streamlit solo avisa de los clics en barras, puntos y gráficas jerárquicas (no en go.Pie), así que la
@@ -781,7 +783,8 @@ def dona_clic(serie, clave, destino, alto=240, colores=None, max_items=9, unidad
     centro: número al centro (p. ej. artículos distintos, que no es la suma de los sectores si un artículo
     está en varios); base: total para los porcentajes de la leyenda; agrupar=False deja solo los
     max_items primeros, sin sector «Otros»; unidad_centro: texto bajo el número del centro si cuenta otra cosa
-    (p. ej. productos); alto_ley: alto máximo de la leyenda, con desplazamiento.
+    (p. ej. productos); alto_ley: alto máximo de la leyenda, con desplazamiento; ovalo: dato extra por elemento,
+    en un óvalo del color del sector a la izquierda de las cifras.
     La leyenda también se puede elegir con un clic en cada renglón.
     """
     s = serie[serie > 0].sort_values(ascending=False)
@@ -837,11 +840,13 @@ def dona_clic(serie, clave, destino, alto=240, colores=None, max_items=9, unidad
     st.plotly_chart(fig, width="stretch", theme=None, key=clave, on_select=al_clic, selection_mode="points",
                     config={"displayModeBar": False})
     md(f'<div class="pista-clic">{"Clic en el centro o en el mismo renglón para ver todo" if sel and vaciable else "Haz clic en un color o en un renglón para ver el detalle"}</div>')
-    detalle = detalle or {}
+    detalle, ovalo = detalle or {}, ovalo or {}
     with st.container(key=f"leyenda_{clave}", height=alto_ley if alto_ley else "content", border=False):
         for n, (k, v, c) in enumerate(zip(nombres, s.values, cols)):
+            ov = (f'<span class="ovalo" style="background:{alfa(c, .16)};border-color:{alfa(c, .55)}">{ovalo[k]}</span>'
+                  if k in ovalo else "")
             with st.container(key=f"leyitem_{clave}_{n}{'__sel' if k == sel else ''}"):
-                md(f'<div class="ley"><i style="background:{c}"></i><span class="n" title="{escape(k)}">{escape(k)}</span>'
+                md(f'<div class="ley"><i style="background:{c}"></i><span class="n" title="{escape(k)}">{escape(k)}</span>{ov}'
                    f'<span class="v">{v:,}{f"<small>{detalle[k]}</small>" if k in detalle else ""}'
                    f'<em>{v / base:.0%}</em></span></div>')
                 st.button(f"Elegir {k}", key=f"leyclic_{clave}_{n}", on_click=elegir, args=(k,))
@@ -1125,7 +1130,8 @@ with b:
                  "Artículos por tipo de inventario.",
                  extra=[f"{n_art(d1):,} artículos", f"{d1['NEGOCIACION'].nunique():,} hojas de negociación"]):
         sel_inv = dona_clic(inv_n, "c_inv_g", "sel_inv", colores=COLOR_INV, centro=n_art(d1),
-                            detalle={k: f"{prov_inv.get(k, 0):,} prov. · {neg_inv.get(k, 0):,} hojas neg." for k in inv_n.index})
+                            detalle={k: f"{prov_inv.get(k, 0):,} prov." for k in inv_n.index},
+                            ovalo={k: f"{neg_inv.get(k, 0):,} hojas neg." for k in inv_n.index})
 d2 = d1[d1["INVENTARIO"] == sel_inv] if sel_inv else d1
 if sel_alc or sel_inv:
     barra_seleccion("cob", [x for x in [sel_alc, sel_inv] if x], ["sel_alcance", "sel_inv"])
