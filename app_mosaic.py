@@ -386,7 +386,7 @@ h1, h2, h3, h4 { font-family: 'Inter', sans-serif !important; color: var(--texto
 [data-testid$="Dropdown"] [role="option"][aria-selected="true"] { color: var(--acento) !important; font-weight: 600; }
 
 /* Banner: cada recuadro es un <details>; al hacer clic se despliega su listado de nombres */
-.banner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: start; margin-bottom: 24px; }
+.banner { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; align-items: start; margin-bottom: 24px; }
 details.kpi-det > summary { list-style: none; cursor: pointer; border-radius: 12px; transition: box-shadow .15s; }
 details.kpi-det > summary::-webkit-details-marker { display: none; }
 details.kpi-det > summary:hover { box-shadow: inset 0 0 0 1px rgb(var(--acento-rgb) / .45); }
@@ -595,7 +595,7 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
 
 /* ── Responsivo ─────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .banner { gap: 16px; }
+  .banner { grid-template-columns: repeat(2, 1fr); gap: 16px; }
   .hallazgos { grid-template-columns: repeat(2, 1fr); }
   .kpis { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
@@ -1016,7 +1016,7 @@ hoy = pd.Timestamp(ahora().date())
 
 
 SECCIONES = {"resumen": "Lectura rápida", "cobertura": "Proveedores y cobertura", "productos": "Productos y artículos",
-             "unidades": "Unidades operativas", "marcas": "Marcas"}
+             "unidades": "Unidades operativas"}
 
 
 def seccion(ancla, sub):
@@ -1055,13 +1055,16 @@ with b, st.container(key="controles"):
         st.button("Actualizar datos", icon=":material/refresh:", key="actualizar", on_click=descargar_excel.clear)
 
 # ──────────────────────────────────────────────────────────────
-# BANNER PRINCIPAL: proveedores (CVE), productos (PROD.) y artículos (ART.)
+# BANNER PRINCIPAL: proveedores (CVE), productos (PROD.), artículos (ART.) y ofertas vigentes
 # Cada clave cuenta una vez aunque se repita; al hacer clic en el recuadro se despliegan los nombres.
+# Oferta vigente: artículo con inventario Oferta cuya vigencia no ha vencido (o no trae fecha).
 # ──────────────────────────────────────────────────────────────
+ofertas = datos[(datos["INVENTARIO"] == "Oferta") & ~(datos["VIG_FECHA"] < hoy)]
 BANNER = [
     ("Proveedores", "proveedor", "CVE", datos.groupby("CVE")["PROV_CORTO"].first()),
     ("Productos", "producto", "PROD.", datos.groupby("PROD")["PRODUCTO"].first()),
     ("Artículos", "articulo", "ART.", datos.groupby("ART_ID")["ARTICULO"].first()),
+    ("Ofertas vigentes", "estrella", "ART.", ofertas.groupby("ART_ID")["ARTICULO"].first()),
 ]
 recuadros = []
 for titulo, icono, campo, por_clave in BANNER:
@@ -1271,58 +1274,5 @@ with tarjeta(f"Artículos {tipo_art} · {nombre_reg}" + (f" · {sel_up}" if sel_
              for r in da_reg.sort_values(["PRODUCTO", "ARTICULO", "ART_ID"]).itertuples()]
     tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Regiones", "Costo unitario"],
           filas, numericas=(7,), alto=440)
-
-# ──────────────────────────────────────────────────────────────
-# MARCAS
-# ──────────────────────────────────────────────────────────────
-seccion("marcas", "Haz clic en una <b>marca</b> (en la dona o en la lista); abajo puedes hacer clic en un impuesto o "
-        "en un producto para ver solo esos artículos.")
-if st.session_state.get("sel_marca") not in marcas.index:
-    st.session_state["sel_marca"] = marcas.index[0]
-a, b = st.columns([2, 3], gap="medium")
-with a:
-    with tarjeta("Marcas con más artículos", "m_dona", "Las 12 principales; el % es sobre todos los artículos.",
-                 extra=f"{len(marcas):,} marcas"):
-        top = marcas.head(12)
-        dona_clic(marcas, "m_dona_g", "sel_marca", alto=240, max_items=12, vaciable=False, agrupar=False,
-                  centro=n_art(datos[datos["MARCA"].isin(top.index)]), unidad="artículos (top 12)", base=total)
-with b:
-    with tarjeta("Todas las marcas", "m_todas", "Haz clic en una marca para ver sus artículos.",
-                 extra=f"{len(marcas):,} marcas"):
-        buscar = st.text_input("Buscar", placeholder="Buscar marca…", label_visibility="collapsed", key="buscar_marca")
-        serie = marcas[marcas.index.str.contains(re.escape(buscar), case=False)] if buscar else marcas
-        barras_clic(serie, "m_todas_g", "sel_marca", total=total, alto_max=520, vaciable=False)
-
-st.write("")
-with tarjeta("Artículos de la marca", "m_detalle", "Elige una marca o haz clic en ella en la dona."):
-    marca = st.selectbox("Marca", list(marcas.index), key="sel_marca", label_visibility="collapsed",
-                         format_func=lambda m: f"{m}  ·  {marcas[m]:,} artículos")
-    dm = datos[datos["MARCA"] == marca]
-    c1, c2 = st.columns([2, 3], gap="medium")
-    with c1:
-        md('<div class="lb-mas" style="border:none;margin:0">Tipo de impuesto</div>')
-        dona_clic(conteo(dm, "IMPUESTO"), f"m_imp_{marca}", f"sel_imp_{marca}", alto=200,
-                  colores={"B": T["oro"], "IVA": T["verde"], "IEPS": T["acento"], "D": T["azul"]}, centro=n_art(dm))
-    with c2:
-        prods_marca = conteo(dm, "PRODUCTO")
-        md(f'<div class="kpis" style="grid-template-columns:1fr 1fr;margin-bottom:12px">'
-           f'{kpi("Artículos", f"{n_art(dm):,}", icono="articulo")}'
-           f'{kpi("Productos", f"{len(prods_marca):,}", icono="producto")}</div>')
-        sel_mprod = barras_clic(prods_marca, f"m_prod_{marca}", f"sel_mprod_{marca}", total=n_art(dm), alto_max=240)
-    sel_imp = st.session_state.get(f"sel_imp_{marca}")
-    sel_imp = sel_imp if sel_imp in set(dm["IMPUESTO"]) else None
-    if sel_imp:
-        dm = dm[dm["IMPUESTO"] == sel_imp]
-    if sel_mprod:
-        dm = dm[dm["PRODUCTO"] == sel_mprod]
-    if sel_imp or sel_mprod:
-        barra_seleccion("marca", [marca, *([f"Impuesto {sel_imp}"] if sel_imp else []), *([sel_mprod] if sel_mprod else [])],
-                        [f"sel_imp_{marca}", f"sel_mprod_{marca}"])
-    filas = [[f"{escape(r.ARTICULO)}<small>ART. {escape(r.ART_ID)} · {escape(r.PROV_CORTO)}</small>",
-              escape(r.MARCA), f"{r.GRAM:g}" if pd.notna(r.GRAM) else "–",
-              escape(r.UM) or "–", dinero(r.COSTO_CAJA), dinero(r.COSTO_UNIT), escape(r.IMPUESTO)]
-             for r in dm.sort_values(["ARTICULO", "ART_ID"]).itertuples()]
-    tabla(["Artículo", "Marca", "Gram", "U/M", "Costo de adquisición", "Costo unitario de adquisición",
-           "Impuesto"], filas, numericas=(2, 4, 5), alto=480)
 
 md('<div class="pie">Subgerencia de Abarrotes · Alimentación para el Bienestar · Gobierno de México</div>')
