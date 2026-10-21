@@ -393,9 +393,12 @@ details.kpi-det > summary:hover { box-shadow: inset 0 0 0 1px rgb(var(--acento-r
 details.kpi-det .kpi > div:nth-child(2) { flex: 1; min-width: 0; }
 details.kpi-det .flecha { color: var(--tenue); transition: transform .2s; margin-top: 2px; }
 details.kpi-det[open] .flecha { transform: rotate(180deg); color: var(--acento); }
-details.kpi-det .pista { font-size: .74rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
+details.kpi-det .l { font-size: .85rem; }
+details.kpi-det .v { font-size: 2.2rem; }
+details.kpi-det .pista { font-size: .85rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
 details.kpi-det[open] > summary { box-shadow: inset 0 0 0 1px rgb(var(--acento-rgb) / .45); }
 details.kpi-det .nombres { margin: 0 20px 16px 20px; border-top: 1px solid var(--linea); }
+details.kpi-det .nombres li { font-size: .92rem; }
 
 /* Encabezado de cada sección de la página */
 .seccion { display: flex; align-items: center; gap: 12px; margin: 40px 0 16px 0; }
@@ -1034,8 +1037,8 @@ md(f'<div class="topbar"><div class="crumb"><span>Alimentación para el Bienesta
 
 a, b = st.columns([4, 1], vertical_alignment="bottom")
 with a:
-    md('<div class="titulo"><div><h1>Programa de Abasto Rural 2026</h1>'
-       '<p>Subgerencia de Abarrotes · proveedores, productos, artículos, marcas y unidades operativas.</p></div></div>')
+    md('<div class="titulo"><div><h1>Subgerencia de Abarrotes</h1>'
+       '<p>Programa de Abasto Rural 2026 · proveedores, productos, artículos, marcas y unidades operativas.</p></div></div>')
 with b, st.container(key="controles"):
     st.toggle(":material/dark_mode: Modo oscuro", key="oscuro")
     if cfg_od.get("link"):
@@ -1114,7 +1117,8 @@ inv_n = conteo(d1, "INVENTARIO")
 prov_inv = d1.groupby("INVENTARIO")["CVE"].nunique()
 with b:
     with tarjeta(f"Tipo de inventario · {sel_alc or 'toda la cobertura'}", "c_inv",
-                 "Artículos por tipo de inventario.", extra=f"{n_art(d1):,} artículos"):
+                 f"Artículos por tipo de inventario · <b>{d1['NEGOCIACION'].nunique():,}</b> hojas de negociación.",
+                 extra=f"{n_art(d1):,} artículos"):
         sel_inv = dona_clic(inv_n, "c_inv_g", "sel_inv", colores=COLOR_INV, centro=n_art(d1),
                             detalle={k: f"{prov_inv.get(k, 0):,} prov." for k in inv_n.index})
 d2 = d1[d1["INVENTARIO"] == sel_inv] if sel_inv else d1
