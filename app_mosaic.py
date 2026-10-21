@@ -394,6 +394,8 @@ details.kpi-det .kpi > div:nth-child(2) { flex: 1; min-width: 0; }
 details.kpi-det .flecha { color: var(--tenue); transition: transform .2s; margin-top: 2px; }
 details.kpi-det[open] .flecha { transform: rotate(180deg); color: var(--acento); }
 details.kpi-det .l { font-size: 1.2rem; }
+/* Título y pista en una sola línea: los cuatro recuadros quedan de la misma altura */
+details.kpi-det .l, details.kpi-det .pista { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 details.kpi-det .v { font-size: 3.2rem; }
 details.kpi-det .ico { width: 58px; height: 58px; }
 details.kpi-det .pista { font-size: 1.1rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
@@ -1071,7 +1073,7 @@ for titulo, icono, campo, por_clave in BANNER:
     nombres = sorted(set(por_clave.dropna()))
     recuadros.append(
         f'<details class="m-card kpi-det"><summary><div class="kpi"><div class="ico">{svg(icono, 30)}</div>'
-        f'<div><div class="l">{titulo}</div><div class="row"><div class="v">{len(por_clave):,}</div></div>'
+        f'<div><div class="l" title="{titulo}">{titulo}</div><div class="row"><div class="v">{len(por_clave):,}</div></div>'
         f'<div class="pista">Clic para ver los nombres</div></div>'
         f'<span class="flecha">{svg("flecha", 18)}</span></div></summary>'
         f'<ul class="nombres">{"".join(f"<li>{escape(n)}</li>" for n in nombres)}</ul></details>')
