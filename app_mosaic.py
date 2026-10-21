@@ -393,12 +393,13 @@ details.kpi-det > summary:hover { box-shadow: inset 0 0 0 1px rgb(var(--acento-r
 details.kpi-det .kpi > div:nth-child(2) { flex: 1; min-width: 0; }
 details.kpi-det .flecha { color: var(--tenue); transition: transform .2s; margin-top: 2px; }
 details.kpi-det[open] .flecha { transform: rotate(180deg); color: var(--acento); }
-details.kpi-det .l { font-size: .85rem; }
-details.kpi-det .v { font-size: 2.2rem; }
-details.kpi-det .pista { font-size: .85rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
+details.kpi-det .l { font-size: 1.05rem; }
+details.kpi-det .v { font-size: 2.8rem; }
+details.kpi-det .ico { width: 52px; height: 52px; }
+details.kpi-det .pista { font-size: 1rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
 details.kpi-det[open] > summary { box-shadow: inset 0 0 0 1px rgb(var(--acento-rgb) / .45); }
 details.kpi-det .nombres { margin: 0 20px 16px 20px; border-top: 1px solid var(--linea); }
-details.kpi-det .nombres li { font-size: .92rem; }
+details.kpi-det .nombres li { font-size: 1rem; }
 
 /* Encabezado de cada sección de la página */
 .seccion { display: flex; align-items: center; gap: 12px; margin: 40px 0 16px 0; }
@@ -450,6 +451,12 @@ div[class*="st-key-card_"] { padding: 0 20px 16px 20px !important; gap: .5rem; }
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .card-h h2 { font-size: 1rem !important; font-weight: 600 !important; margin: 0; padding: 0; color: var(--texto); }
 .card-h p { font-size: .8rem; color: var(--tenue); margin: 2px 0 0 0; }
+/* Sección de cobertura: letra más grande en sus 3 tarjetas */
+:is(.st-key-card_c_alc, .st-key-card_c_inv, .st-key-card_c_prov) .card-h h2 { font-size: 1.2rem !important; }
+:is(.st-key-card_c_alc, .st-key-card_c_inv, .st-key-card_c_prov) .card-h p { font-size: .92rem; }
+:is(.st-key-card_c_alc, .st-key-card_c_inv, .st-key-card_c_prov) .card-h .extra { font-size: .88rem; padding: 3px 12px; }
+.st-key-card_c_prov .tabla { font-size: .92rem; }
+.card-h .extras { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .card-h .extra { font-size: .75rem; font-weight: 600; color: var(--acento); white-space: nowrap;
   background: rgb(var(--acento-rgb) / .1); border-radius: 999px; padding: 2px 10px; }
 [data-testid="stPlotlyChart"] { background: transparent; }
@@ -637,9 +644,11 @@ def alfa(color, a):
 @contextmanager
 def tarjeta(titulo, clave, sub="", extra=""):
     """Tarjeta de Mosaic: fondo de tarjeta, rounded-xl, encabezado con línea inferior."""
+    extras = [extra] if isinstance(extra, str) else extra   # una etiqueta o varias, una al lado de otra
+    chips = "".join(f"<span class=extra>{e}</span>" for e in extras if e)
     with st.container(border=True, key=f"card_{clave}"):
         md(f'<div class="card-h"><div><h2>{escape(titulo)}</h2>{f"<p>{sub}</p>" if sub else ""}</div>'
-           f'{f"<span class=extra>{extra}</span>" if extra else ""}</div>')
+           f'{f"<div class=extras>{chips}</div>" if chips else ""}</div>')
         yield
 
 
@@ -1058,7 +1067,7 @@ recuadros = []
 for titulo, icono, campo, por_clave in BANNER:
     nombres = sorted(set(por_clave.dropna()))
     recuadros.append(
-        f'<details class="m-card kpi-det"><summary><div class="kpi"><div class="ico">{svg(icono, 20)}</div>'
+        f'<details class="m-card kpi-det"><summary><div class="kpi"><div class="ico">{svg(icono, 26)}</div>'
         f'<div><div class="l">{titulo}</div><div class="row"><div class="v">{len(por_clave):,}</div></div>'
         f'<div class="pista">Clic para ver los nombres</div></div>'
         f'<span class="flecha">{svg("flecha", 18)}</span></div></summary>'
@@ -1117,8 +1126,8 @@ inv_n = conteo(d1, "INVENTARIO")
 prov_inv = d1.groupby("INVENTARIO")["CVE"].nunique()
 with b:
     with tarjeta(f"Tipo de inventario · {sel_alc or 'toda la cobertura'}", "c_inv",
-                 f"Artículos por tipo de inventario · <b>{d1['NEGOCIACION'].nunique():,}</b> hojas de negociación.",
-                 extra=f"{n_art(d1):,} artículos"):
+                 "Artículos por tipo de inventario.",
+                 extra=[f"{n_art(d1):,} artículos", f"{d1['NEGOCIACION'].nunique():,} hojas de negociación"]):
         sel_inv = dona_clic(inv_n, "c_inv_g", "sel_inv", colores=COLOR_INV, centro=n_art(d1),
                             detalle={k: f"{prov_inv.get(k, 0):,} prov." for k in inv_n.index})
 d2 = d1[d1["INVENTARIO"] == sel_inv] if sel_inv else d1
