@@ -393,13 +393,13 @@ details.kpi-det > summary:hover { box-shadow: inset 0 0 0 1px rgb(var(--acento-r
 details.kpi-det .kpi > div:nth-child(2) { flex: 1; min-width: 0; }
 details.kpi-det .flecha { color: var(--tenue); transition: transform .2s; margin-top: 2px; }
 details.kpi-det[open] .flecha { transform: rotate(180deg); color: var(--acento); }
-details.kpi-det .l { font-size: 1.05rem; }
-details.kpi-det .v { font-size: 2.8rem; }
-details.kpi-det .ico { width: 52px; height: 52px; }
-details.kpi-det .pista { font-size: 1rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
+details.kpi-det .l { font-size: 1.2rem; }
+details.kpi-det .v { font-size: 3.2rem; }
+details.kpi-det .ico { width: 58px; height: 58px; }
+details.kpi-det .pista { font-size: 1.1rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
 details.kpi-det[open] > summary { box-shadow: inset 0 0 0 1px rgb(var(--acento-rgb) / .45); }
 details.kpi-det .nombres { margin: 0 20px 16px 20px; border-top: 1px solid var(--linea); }
-details.kpi-det .nombres li { font-size: 1rem; }
+details.kpi-det .nombres li { font-size: 1.05rem; }
 
 /* Encabezado de cada sección de la página */
 .seccion { display: flex; align-items: center; gap: 12px; margin: 40px 0 16px 0; }
@@ -437,8 +437,8 @@ details.kpi-det .nombres li { font-size: 1rem; }
 /* ── Título de página ───────────────────────────────── */
 .titulo { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px;
   flex-wrap: wrap; margin-bottom: 24px; }
-.titulo h1 { font-size: 1.88rem; font-weight: 700; margin: 0; padding: 0; line-height: 1.33; }
-.titulo p { margin: 2px 0 0 0; font-size: .875rem; color: var(--texto3); }
+.titulo h1 { font-size: 2.6rem; font-weight: 700; margin: 0; padding: 0; line-height: 1.33; }
+.titulo p { margin: 4px 0 0 0; font-size: 1.1rem; color: var(--texto3); }
 .etiq { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 500; color: var(--texto2);
   background: var(--card); border: 1px solid var(--borde); border-radius: 999px; padding: 3px 10px; margin: 2px 0 2px 6px; }
 .etiq i { width: 7px; height: 7px; border-radius: 50%; }
@@ -451,11 +451,6 @@ div[class*="st-key-card_"] { padding: 0 20px 16px 20px !important; gap: .5rem; }
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .card-h h2 { font-size: 1rem !important; font-weight: 600 !important; margin: 0; padding: 0; color: var(--texto); }
 .card-h p { font-size: .8rem; color: var(--tenue); margin: 2px 0 0 0; }
-/* Sección de cobertura: letra más grande en sus 3 tarjetas */
-:is(.st-key-card_c_alc, .st-key-card_c_inv, .st-key-card_c_prov) .card-h h2 { font-size: 1.2rem !important; }
-:is(.st-key-card_c_alc, .st-key-card_c_inv, .st-key-card_c_prov) .card-h p { font-size: .92rem; }
-:is(.st-key-card_c_alc, .st-key-card_c_inv, .st-key-card_c_prov) .card-h .extra { font-size: .88rem; padding: 3px 12px; }
-.st-key-card_c_prov .tabla { font-size: .92rem; }
 .card-h .extras { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .card-h .extra { font-size: .75rem; font-weight: 600; color: var(--acento); white-space: nowrap;
   background: rgb(var(--acento-rgb) / .1); border-radius: 999px; padding: 2px 10px; }
@@ -603,7 +598,7 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
   .kpis { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
 @media (max-width: 900px) {
-  .titulo h1 { font-size: 1.5rem; }
+  .titulo h1 { font-size: 1.9rem; }
   .topbar .crumb span { display: none; }
 }
 @media (max-width: 640px) {
@@ -1067,7 +1062,7 @@ recuadros = []
 for titulo, icono, campo, por_clave in BANNER:
     nombres = sorted(set(por_clave.dropna()))
     recuadros.append(
-        f'<details class="m-card kpi-det"><summary><div class="kpi"><div class="ico">{svg(icono, 26)}</div>'
+        f'<details class="m-card kpi-det"><summary><div class="kpi"><div class="ico">{svg(icono, 30)}</div>'
         f'<div><div class="l">{titulo}</div><div class="row"><div class="v">{len(por_clave):,}</div></div>'
         f'<div class="pista">Clic para ver los nombres</div></div>'
         f'<span class="flecha">{svg("flecha", 18)}</span></div></summary>'
