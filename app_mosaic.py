@@ -1119,12 +1119,13 @@ with a:
 d1 = datos[datos["ALCANCE"] == sel_alc] if sel_alc else datos
 inv_n = conteo(d1, "INVENTARIO")
 prov_inv = d1.groupby("INVENTARIO")["CVE"].nunique()
+neg_inv = d1.groupby("INVENTARIO")["NEGOCIACION"].nunique()
 with b:
     with tarjeta(f"Tipo de inventario · {sel_alc or 'toda la cobertura'}", "c_inv",
                  "Artículos por tipo de inventario.",
                  extra=[f"{n_art(d1):,} artículos", f"{d1['NEGOCIACION'].nunique():,} hojas de negociación"]):
         sel_inv = dona_clic(inv_n, "c_inv_g", "sel_inv", colores=COLOR_INV, centro=n_art(d1),
-                            detalle={k: f"{prov_inv.get(k, 0):,} prov." for k in inv_n.index})
+                            detalle={k: f"{prov_inv.get(k, 0):,} prov. · {neg_inv.get(k, 0):,} hojas neg." for k in inv_n.index})
 d2 = d1[d1["INVENTARIO"] == sel_inv] if sel_inv else d1
 if sel_alc or sel_inv:
     barra_seleccion("cob", [x for x in [sel_alc, sel_inv] if x], ["sel_alcance", "sel_inv"])
