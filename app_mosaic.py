@@ -409,9 +409,16 @@ details.kpi-det .l, details.kpi-det .pista { white-space: nowrap; overflow: hidd
 details.kpi-det .v { font-size: 3.2rem; }
 details.kpi-det .ico { width: 58px; height: 58px; background: var(--c); color: var(--ci); }
 details.kpi-det .pista { font-size: 1.1rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
+/* Contorno del color de cada recuadro: en la tarjeta y, separado por un aro del fondo, en su ícono */
+details.kpi-det.m-card, .hz.m-card { border: 1.5px solid var(--c) !important; }
+.hz.m-card { border-left-width: 5px !important; }
+details.kpi-det .ico, .hz .ico, .indice a span { box-shadow: 0 0 0 2px var(--card), 0 0 0 3.5px var(--c, var(--acento)); }
+.seccion .paso { box-shadow: 0 0 0 2px var(--fondo), 0 0 0 3.5px var(--acento); }
 /* Cuatro recuadros en pantallas medianas: letra e ícono un poco más chicos para que el título quepa completo */
 .banner:not(.dos) details.kpi-det .kpi { gap: 12px; padding: 18px 16px; }
 .banner:not(.dos) details.kpi-det .l { font-size: 1rem; letter-spacing: .02em; }
+/* Dos recuadros: títulos largos («Hojas de negociación · …») pasan a dos renglones en vez de cortarse */
+.banner.dos details.kpi-det .l { white-space: normal; }
 .banner:not(.dos) details.kpi-det .pista { font-size: .95rem; }
 .banner:not(.dos) details.kpi-det .ico { width: 50px; height: 50px; }
 details.kpi-det[open] > summary { box-shadow: inset 0 0 0 1px rgb(var(--acento-rgb) / .45); }
@@ -442,7 +449,7 @@ details.kpi-det .s { font-size: 1.05rem; }
 details.kpi-det .nombres li.vacio { color: var(--tenue); font-style: italic; border-bottom: none; }
 
 /* Encabezado de cada sección de la página */
-.seccion { display: flex; align-items: center; gap: 12px; margin: 40px 0 16px 0; }
+.seccion { display: flex; align-items: flex-start; gap: 12px; margin: 40px 0 16px 0; }
 .seccion .ico { width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: grid; place-items: center;
   background: rgb(var(--acento-rgb) / .1); color: var(--acento); }
 .seccion h2 { font-size: 1.3rem !important; font-weight: 700 !important; margin: 0; padding: 0 !important; }
@@ -487,7 +494,8 @@ details.kpi-det .nombres li.vacio { color: var(--tenue); font-style: italic; bor
 .m-card, div[class*="st-key-card_"] { background: var(--card); border-radius: 12px; border: none !important;
   box-shadow: var(--sombra); }
 div[class*="st-key-card_"] { padding: 0 20px 16px 20px !important; gap: .5rem; }
-.card-h { margin: 0 -20px 8px -20px; padding: 16px 20px; border-bottom: 1px solid var(--linea);
+.card-h > div:first-child { flex: 1 1 180px; min-width: 0; }
+.card-h { margin: 0 -20px 8px -20px; padding: 16px 20px; border-bottom: 1px solid var(--linea); flex-wrap: wrap;
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .card-h h2 { font-size: 1rem !important; font-weight: 600 !important; margin: 0; padding: 0; color: var(--texto); }
 .card-h p { font-size: .8rem; color: var(--tenue); margin: 2px 0 0 0; }
@@ -634,6 +642,15 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
 .pie { text-align: center; margin-top: 40px; font-size: .75rem; color: var(--tenue); }
 
 /* ── Responsivo ─────────────────────────────────────── */
+/* Productos: en pantallas medianas, tipo de inventario y dona lado a lado y las barras abajo a todo lo ancho.
+   Unidades operativas: las regiones bajan debajo del mapa. */
+@media (max-width: 1200px) {
+  .st-key-fila_prod [data-testid="stHorizontalBlock"], .st-key-fila_reg [data-testid="stHorizontalBlock"] {
+    flex-wrap: wrap; row-gap: 1rem; }
+  .st-key-fila_prod [data-testid="stColumn"] { flex: 1 1 calc(50% - 1rem) !important; min-width: 280px; }
+  .st-key-fila_prod [data-testid="stColumn"]:nth-child(2) { order: 3; flex-basis: 100% !important; }
+  .st-key-fila_reg [data-testid="stColumn"] { flex: 1 1 100% !important; }
+}
 @media (max-width: 1100px) {
   .banner { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .hallazgos { grid-template-columns: repeat(2, 1fr); }
@@ -647,7 +664,14 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
   .block-container { padding-left: 1rem !important; padding-right: 1rem !important; }
   .topbar { height: auto; min-height: 56px; flex-wrap: wrap; gap: 8px; padding: 10px 0; margin-bottom: 18px; }
   .titulo { margin-bottom: 16px; }
-  .banner, .banner.dos { grid-template-columns: 1fr; gap: 12px; }
+  .banner, .banner.dos { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  /* Una sola columna: el título del recuadro puede ocupar dos renglones en vez de cortarse */
+  details.kpi-det .l { white-space: normal; font-size: 1rem !important; }
+  details.kpi-det .v { font-size: 2.6rem; }
+  details.kpi-det .kpi { padding: 16px 14px; gap: 12px; }
+  details.kpi-det .ico { width: 46px !important; height: 46px !important; }
+  .buscador { margin: 10px 14px 4px 14px; }
+  .seccion h2 { font-size: 1.15rem !important; }
   .hallazgos { grid-template-columns: 1fr; }
   .kpis { gap: 12px; margin-bottom: 16px; }
   .kpi { padding: 14px; gap: 10px; }
@@ -800,7 +824,7 @@ def barras_clic(serie, clave, destino, color=None, total=None, alto_max=None, et
     fig.update_layout(bargap=.3, margin=dict(t=4, b=4, r=8))
     fig.update_yaxes(autorange="reversed", gridcolor="rgba(0,0,0,0)", tickfont=dict(size=11, color=T["texto2"]),
                      ticksuffix="  ")
-    fig.update_xaxes(visible=False, range=[0, serie.max() * 1.25])
+    fig.update_xaxes(visible=False, range=[0, serie.max() * 1.4])
 
     def al_clic():
         indices = st.session_state[clave]["selection"]["point_indices"]
@@ -1110,7 +1134,7 @@ if datos.empty:
 hoy = pd.Timestamp(ahora().date())
 
 
-SECCIONES = {"resumen": "Lectura rápida", "cobertura": "Proveedores y cobertura", "hojas": "Hojas de negociación",
+SECCIONES = {"resumen": "Lectura rápida", "hojas": "Hojas de negociación", "cobertura": "Proveedores y cobertura",
              "productos": "Productos y artículos",
              "unidades": "Unidades operativas"}
 
@@ -1200,6 +1224,16 @@ md('<div class="hallazgos">' + "".join(
     for c, i, t in hallazgos) + "</div>")
 
 # ──────────────────────────────────────────────────────────────
+# HOJAS DE NEGOCIACIÓN: cada hoja es de un solo proveedor y una sola cobertura
+# ──────────────────────────────────────────────────────────────
+seccion("hojas", "Haz clic en un recuadro para ver sus hojas de negociación (número · proveedor) y búscalas.")
+banner([(f"Hojas de negociación · Cobertura {alc.lower()}", icono, d["NEGOCIACION"].nunique(),
+         f"<b>{n_art(d):,}</b> artículos · <b>{d['CVE'].nunique():,}</b> proveedores",
+         (d["NEGOCIACION"].astype(str) + " · " + d["PROV_CORTO"].astype(str)).drop_duplicates(), color)
+        for alc, icono, color in [("Nacional", "nacional", P7420), ("Regional", "regional", P7421)]
+        for d in [datos[datos["ALCANCE"] == alc]]], clase="dos")
+
+# ──────────────────────────────────────────────────────────────
 # PROVEEDORES Y COBERTURA
 # ──────────────────────────────────────────────────────────────
 seccion("cobertura", "Haz clic en un recuadro para ver sus proveedores y búscalos por nombre · un proveedor "
@@ -1229,16 +1263,6 @@ with st.container():
               buscar="Buscar proveedor, tipo de inventario o región…")
 
 # ──────────────────────────────────────────────────────────────
-# HOJAS DE NEGOCIACIÓN: cada hoja es de un solo proveedor y una sola cobertura
-# ──────────────────────────────────────────────────────────────
-seccion("hojas", "Haz clic en un recuadro para ver sus hojas de negociación (número · proveedor) y búscalas.")
-banner([(f"Hojas de negociación · Cobertura {alc.lower()}", icono, d["NEGOCIACION"].nunique(),
-         f"<b>{n_art(d):,}</b> artículos · <b>{d['CVE'].nunique():,}</b> proveedores",
-         (d["NEGOCIACION"].astype(str) + " · " + d["PROV_CORTO"].astype(str)).drop_duplicates(), color)
-        for alc, icono, color in [("Nacional", "nacional", P7420), ("Regional", "regional", P7421)]
-        for d in [datos[datos["ALCANCE"] == alc]]], clase="dos")
-
-# ──────────────────────────────────────────────────────────────
 # PRODUCTOS Y ARTÍCULOS: el tipo de inventario elegido filtra los productos y sus artículos
 # ──────────────────────────────────────────────────────────────
 seccion("productos", "<b>①</b> Si quieres, haz clic en un tipo de inventario · <b>②</b> elige un producto haciendo "
@@ -1262,7 +1286,8 @@ with st.container(key="buscar_prod"):
 st.write("")
 
 clave_pp = f"sel_pp_{sel_inv or 'todos'}_{sel_prod}"
-i, a, b = st.columns([2, 3, 2], gap="medium")
+with st.container(key="fila_prod"):
+    i, a, b = st.columns([2, 3, 2], gap="medium")
 with i:
     prov_inv = datos.groupby("INVENTARIO")["CVE"].nunique()
     neg_inv = datos.groupby("INVENTARIO")["NEGOCIACION"].nunique()
@@ -1331,7 +1356,8 @@ def elegir_region(sig):
     st.session_state["sel_region"] = None if st.session_state.get("sel_region") == sig else sig
 
 
-a, b = st.columns([7, 3], gap="medium")
+with st.container(key="fila_reg"):
+    a, b = st.columns([7, 3], gap="medium")
 with a:
     with tarjeta(f"Mapa y productos {tipo_art} · {nombre_reg}", "u_mapa",
                  "Pasa el cursor sobre un estado para ver el producto estrella de su región; haz clic en un producto "
