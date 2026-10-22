@@ -143,6 +143,10 @@ ICONOS = {
     "ok": '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
     "flecha": '<path d="m6 9 6 6 6-6"/>',
     "buscar": '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    "nacional": '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>'
+                '<path d="M2 12h20"/>',
+    "regional": '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 '
+                '8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
 }
 
 
@@ -1166,7 +1170,7 @@ seccion("cobertura", "Haz clic en un recuadro para ver sus proveedores y búscal
 # Un proveedor con artículos nacionales y regionales cuenta en los dos recuadros
 banner([(f"Proveedores · Cobertura {alc.lower()}", icono, d["CVE"].nunique(), f"<b>{n_art(d):,}</b> artículos",
          d["PROV_CORTO"].dropna())
-        for alc, icono in [("Nacional", "mapa"), ("Regional", "proveedor")]
+        for alc, icono in [("Nacional", "nacional"), ("Regional", "regional")]
         for d in [datos[datos["ALCANCE"] == alc]]], clase="dos")
 
 with st.container():
