@@ -409,10 +409,10 @@ details.kpi-det .l, details.kpi-det .pista { white-space: nowrap; overflow: hidd
 details.kpi-det .v { font-size: 3.2rem; }
 details.kpi-det .ico { width: 58px; height: 58px; background: var(--c); color: var(--ci); }
 details.kpi-det .pista { font-size: 1.1rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
-/* Contorno del color de cada recuadro: en la tarjeta y, separado por un aro del fondo, en su ícono */
+/* Contorno del color de cada recuadro (los íconos van sin aro; los números de sección sí lo llevan) */
 details.kpi-det.m-card, .hz.m-card { border: 1.5px solid var(--c) !important; }
 .hz.m-card { border-left-width: 5px !important; }
-details.kpi-det .ico, .hz .ico, .indice a span { box-shadow: 0 0 0 2px var(--card), 0 0 0 3.5px var(--c, var(--acento)); }
+.indice a span { box-shadow: 0 0 0 2px var(--card), 0 0 0 3.5px var(--acento); }
 .seccion .paso { box-shadow: 0 0 0 2px var(--fondo), 0 0 0 3.5px var(--acento); }
 /* Cuatro recuadros en pantallas medianas: letra e ícono un poco más chicos para que el título quepa completo */
 .banner:not(.dos) details.kpi-det .kpi { gap: 12px; padding: 18px 16px; }
