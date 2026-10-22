@@ -1260,8 +1260,8 @@ md('<div class="hallazgos">' + "".join(
 # ──────────────────────────────────────────────────────────────
 # HOJAS DE NEGOCIACIÓN: proveedores por cobertura; uno con artículos nacionales y regionales cuenta en los dos
 # ──────────────────────────────────────────────────────────────
-seccion("hojas", "Haz clic en un recuadro para ver sus proveedores y búscalos por nombre.")
-banner([(f"Proveedores · Cobertura {alc.lower()}", icono, d["CVE"].nunique(), f"<b>{n_art(d):,}</b> artículos",
+seccion("hojas", "Haz clic en un recuadro para ver los nombres y búscalos.")
+banner([(f"Hojas de negociación · Cobertura {alc.lower()}", icono, d["CVE"].nunique(), f"<b>{n_art(d):,}</b> artículos",
          d["PROV_CORTO"].dropna(), color)
         for alc, icono, color in [("Nacional", "nacional", P7420), ("Regional", "regional", P7421)]
         for d in [datos[datos["ALCANCE"] == alc]]], clase="dos")
