@@ -142,6 +142,7 @@ ICONOS = {
               '<path d="M12 17h.01"/>',
     "ok": '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
     "flecha": '<path d="m6 9 6 6 6-6"/>',
+    "buscar": '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
 }
 
 
@@ -402,6 +403,17 @@ details.kpi-det .pista { font-size: 1.1rem; color: var(--acento); font-weight: 5
 details.kpi-det[open] > summary { box-shadow: inset 0 0 0 1px rgb(var(--acento-rgb) / .45); }
 details.kpi-det .nombres { margin: 0 20px 16px 20px; border-top: 1px solid var(--linea); }
 details.kpi-det .nombres li { font-size: 1.05rem; }
+details.kpi-det .s { font-size: 1.05rem; }
+.banner.dos { grid-template-columns: repeat(2, 1fr); }
+/* Buscador de cada listado: filtra solo los nombres de su recuadro */
+.buscador { display: flex; align-items: center; gap: 8px; margin: 12px 20px 4px 20px; padding: 6px 10px;
+  background: var(--sutil); border: 1px solid var(--borde); border-radius: 8px; color: var(--tenue); }
+.buscador:focus-within { border-color: var(--acento); }
+.buscador input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: .95rem;
+  color: var(--texto); caret-color: var(--acento); }
+.buscador input::placeholder { color: var(--tenue); opacity: 1; }
+.buscador .cuenta { font-size: .78rem; white-space: nowrap; }
+details.kpi-det .nombres li.vacio { color: var(--tenue); font-style: italic; border-bottom: none; }
 
 /* Encabezado de cada sección de la página */
 .seccion { display: flex; align-items: center; gap: 12px; margin: 40px 0 16px 0; }
@@ -609,7 +621,7 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
   .block-container { padding-left: 1rem !important; padding-right: 1rem !important; }
   .topbar { height: auto; min-height: 56px; flex-wrap: wrap; gap: 8px; padding: 10px 0; margin-bottom: 18px; }
   .titulo { margin-bottom: 16px; }
-  .banner { grid-template-columns: 1fr; gap: 12px; }
+  .banner, .banner.dos { grid-template-columns: 1fr; gap: 12px; }
   .hallazgos { grid-template-columns: 1fr; }
   .kpis { gap: 12px; margin-bottom: 16px; }
   .kpi { padding: 14px; gap: 10px; }
@@ -665,6 +677,48 @@ def fila_kpis(items):
 def porcentaje(parte, total):
     """Badge de proporción; se omite cuando la selección es el total."""
     return f"{parte / total:.0%} del total" if total and parte != total else None
+
+
+# Filtra los nombres del listado mientras se escribe (sin acentos ni mayúsculas). st.markdown no ejecuta
+# JavaScript, por eso el banner se dibuja con st.html; el script se registra una sola vez por página.
+BUSCADOR_JS = """<script>
+if (!window.__buscadorListas) {
+  window.__buscadorListas = true;
+  const norm = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  document.addEventListener("input", e => {
+    const caja = e.target.closest && e.target.closest(".buscador input");
+    if (!caja) return;
+    const det = caja.closest("details"), q = norm(caja.value);
+    let n = 0;
+    det.querySelectorAll(".nombres li:not(.vacio)").forEach(li => {
+      const ok = !q || norm(li.textContent).includes(q);
+      li.hidden = !ok;
+      n += ok;
+    });
+    det.querySelector(".nombres li.vacio").hidden = n > 0;
+    det.querySelector(".buscador .cuenta").textContent = q ? n.toLocaleString("es-MX") + " de " + det.dataset.total : "";
+  });
+}
+</script>"""
+
+
+def banner(recuadros, clase=""):
+    """Recuadros grandes (<details>): al hacer clic se despliega su listado de nombres, con un buscador propio.
+    recuadros: (título, ícono, valor, subtítulo, nombres)."""
+    html = []
+    for titulo, icono, valor, sub, nombres in recuadros:
+        nombres = sorted(set(nombres))
+        html.append(
+            f'<details class="m-card kpi-det" data-total="{len(nombres):,}"><summary><div class="kpi">'
+            f'<div class="ico">{svg(icono, 30)}</div><div><div class="l" title="{escape(titulo)}">{escape(titulo)}</div>'
+            f'<div class="row"><div class="v">{valor:,}</div></div>{f"<div class=s>{sub}</div>" if sub else ""}'
+            f'<div class="pista">Clic para ver los nombres</div></div>'
+            f'<span class="flecha">{svg("flecha", 18)}</span></div></summary>'
+            f'<label class="buscador">{svg("buscar", 16)}<input type="search" placeholder="Buscar en {escape(titulo.lower())}…"'
+            f' autocomplete="off"><span class="cuenta"></span></label>'
+            f'<ul class="nombres">{"".join(f"<li>{escape(n)}</li>" for n in nombres)}'
+            f'<li class="vacio" hidden>Sin coincidencias.</li></ul></details>')
+    st.html(f'<div class="banner {clase}">{"".join(html)}</div>{BUSCADOR_JS}', unsafe_allow_javascript=True)
 
 
 def guia(texto):
@@ -1068,16 +1122,7 @@ BANNER = [
     ("Artículos", "articulo", "ART.", datos.groupby("ART_ID")["ARTICULO"].first()),
     ("Ofertas vigentes", "estrella", "ART.", ofertas.groupby("ART_ID")["ARTICULO"].first()),
 ]
-recuadros = []
-for titulo, icono, campo, por_clave in BANNER:
-    nombres = sorted(set(por_clave.dropna()))
-    recuadros.append(
-        f'<details class="m-card kpi-det"><summary><div class="kpi"><div class="ico">{svg(icono, 30)}</div>'
-        f'<div><div class="l" title="{titulo}">{titulo}</div><div class="row"><div class="v">{len(por_clave):,}</div></div>'
-        f'<div class="pista">Clic para ver los nombres</div></div>'
-        f'<span class="flecha">{svg("flecha", 18)}</span></div></summary>'
-        f'<ul class="nombres">{"".join(f"<li>{escape(n)}</li>" for n in nombres)}</ul></details>')
-md('<div class="banner">' + "".join(recuadros) + "</div>")
+banner([(titulo, icono, len(por_clave), "", por_clave.dropna()) for titulo, icono, campo, por_clave in BANNER])
 
 # ──────────────────────────────────────────────────────────────
 # LECTURA RÁPIDA
@@ -1116,78 +1161,77 @@ md('<div class="hallazgos">' + "".join(
 # ──────────────────────────────────────────────────────────────
 # PROVEEDORES Y COBERTURA
 # ──────────────────────────────────────────────────────────────
-seccion("cobertura", "<b>①</b> Haz clic en Nacional o Regional · <b>②</b> haz clic en un tipo de inventario · "
-        "abajo aparecen los proveedores que lo tienen.")
-alc_n = conteo(datos, "ALCANCE")
-prov_alc = datos.groupby("ALCANCE")["CVE"].nunique()
-a, b = st.columns(2, gap="medium")
-with a:
-    with tarjeta("Cobertura nacional y regional", "c_alc", "NAL = todo el país; las demás siglas son regiones.",
-                 extra=f"{total:,} artículos"):
-        sel_alc = dona_clic(alc_n, "c_alc_g", "sel_alcance", colores=COLOR_ALCANCE, centro=total,
-                            detalle={k: f"{prov_alc.get(k, 0):,} prov." for k in alc_n.index})
-d1 = datos[datos["ALCANCE"] == sel_alc] if sel_alc else datos
-inv_n = conteo(d1, "INVENTARIO")
-prov_inv = d1.groupby("INVENTARIO")["CVE"].nunique()
-neg_inv = d1.groupby("INVENTARIO")["NEGOCIACION"].nunique()
-with b:
-    with tarjeta(f"Tipo de inventario · {sel_alc or 'toda la cobertura'}", "c_inv",
-                 "Artículos por tipo de inventario.",
-                 extra=[f"{n_art(d1):,} artículos", f"{d1['NEGOCIACION'].nunique():,} hojas de negociación"]):
-        sel_inv = dona_clic(inv_n, "c_inv_g", "sel_inv", colores=COLOR_INV, centro=n_art(d1),
-                            detalle={k: f"{prov_inv.get(k, 0):,} prov." for k in inv_n.index},
-                            ovalo={k: f"{neg_inv.get(k, 0):,} {'hoja' if neg_inv.get(k, 0) == 1 else 'hojas'} neg."
-                                   for k in inv_n.index})
-d2 = d1[d1["INVENTARIO"] == sel_inv] if sel_inv else d1
-if sel_alc or sel_inv:
-    barra_seleccion("cob", [x for x in [sel_alc, sel_inv] if x], ["sel_alcance", "sel_inv"])
+seccion("cobertura", "Haz clic en un recuadro para ver sus proveedores y búscalos por nombre · abajo, cada "
+        "proveedor con sus tipos de inventario y su cobertura.")
+# Un proveedor con artículos nacionales y regionales cuenta en los dos recuadros
+banner([(f"Proveedores · Cobertura {alc.lower()}", icono, d["CVE"].nunique(), f"<b>{n_art(d):,}</b> artículos",
+         d["PROV_CORTO"].dropna())
+        for alc, icono in [("Nacional", "mapa"), ("Regional", "proveedor")]
+        for d in [datos[datos["ALCANCE"] == alc]]], clase="dos")
 
-st.write("")
-filtro = " · ".join(x for x in [sel_alc, sel_inv] if x) or "todos"
 with st.container():
-    resumen = (d2.groupby("CVE").agg(prov=("PROV_CORTO", "first"), art=("ART_ID", "nunique"))
+    resumen = (datos.groupby("CVE").agg(prov=("PROV_CORTO", "first"), art=("ART_ID", "nunique"))
                .sort_values(["art", "prov"], ascending=[False, True]))
-    tipos = d1.groupby(["CVE", "INVENTARIO"])["ART_ID"].nunique()   # sus inventarios dentro de la cobertura
-    cobertura = d2.groupby("CVE")[["ALCANCE", "REGIONES"]].apply(texto_cobertura)
-    with tarjeta(f"Proveedores · {filtro}", "c_prov",
+    tipos = datos.groupby(["CVE", "INVENTARIO"])["ART_ID"].nunique()
+    cobertura = datos.groupby("CVE")[["ALCANCE", "REGIONES"]].apply(texto_cobertura)
+    with tarjeta("Proveedores · todos", "c_prov",
                  "Cada proveedor con sus tipos de inventario y si su cobertura es nacional o regional.",
                  extra=f"{len(resumen):,} proveedores"):
         filas = []
         for cve, r in resumen.iterrows():
-            fichas = "".join(chip(t, COLOR_INV.get(t, T["texto3"]), int(n), sel=t == sel_inv)
+            fichas = "".join(chip(t, COLOR_INV.get(t, T["texto3"]), int(n))
                              for t, n in tipos[cve].sort_values(ascending=False).items())
             filas.append([escape(r.prov), fichas, cobertura[cve]])
         tabla(["Proveedor", "Tipos de inventario", "Cobertura"], filas, alto=520)
 
 # ──────────────────────────────────────────────────────────────
-# PRODUCTOS Y ARTÍCULOS
+# PRODUCTOS Y ARTÍCULOS: el tipo de inventario elegido filtra los productos y sus artículos
 # ──────────────────────────────────────────────────────────────
-seccion("productos", "<b>①</b> Elige un producto haciendo clic en su barra o búscalo por nombre · <b>②</b> si "
-        "quieres, haz clic en un proveedor de la dona para ver solo sus artículos.")
-if st.session_state.get("sel_prod") not in prods.index:
-    st.session_state["sel_prod"] = prods.index[0]
+seccion("productos", "<b>①</b> Si quieres, haz clic en un tipo de inventario · <b>②</b> elige un producto haciendo "
+        "clic en su barra o búscalo por nombre · <b>③</b> haz clic en un proveedor de la dona para ver solo sus "
+        "artículos.")
+inv_n = conteo(datos, "INVENTARIO")
+sel_inv = st.session_state.get("sel_inv")
+sel_inv = sel_inv if sel_inv in inv_n.index else None
+d_inv = datos[datos["INVENTARIO"] == sel_inv] if sel_inv else datos
+prods_inv = (d_inv.groupby("PROD").agg(nombre=("PRODUCTO", "first"), art=("ART_ID", "nunique"))
+             .sort_values(["art", "nombre"], ascending=[False, True]))
+if st.session_state.get("sel_prod") not in prods_inv.index:
+    st.session_state["sel_prod"] = prods_inv.index[0]
 sel_prod = st.session_state["sel_prod"]
-nombre_prod = prods.at[sel_prod, "nombre"]
-dp = datos[datos["PROD"] == sel_prod]
-st.selectbox("Buscar producto", list(prods.index), key="sel_prod", label_visibility="collapsed",
-             format_func=lambda k: f"🔎  {prods.at[k, 'nombre']}  ·  {prods.at[k, 'art']:,} artículos")
+nombre_prod = prods_inv.at[sel_prod, "nombre"]
+dp = d_inv[d_inv["PROD"] == sel_prod]
+st.selectbox("Buscar producto", list(prods_inv.index), key="sel_prod", label_visibility="collapsed",
+             format_func=lambda k: f"🔎  {prods_inv.at[k, 'nombre']}  ·  {prods_inv.at[k, 'art']:,} artículos")
 st.write("")
 
-a, b = st.columns([3, 2], gap="medium")
+clave_pp = f"sel_pp_{sel_inv or 'todos'}_{sel_prod}"
+i, a, b = st.columns([2, 3, 2], gap="medium")
+with i:
+    prov_inv = datos.groupby("INVENTARIO")["CVE"].nunique()
+    neg_inv = datos.groupby("INVENTARIO")["NEGOCIACION"].nunique()
+    with tarjeta("Tipo de inventario · toda la cobertura", "c_inv", "Artículos por tipo de inventario.",
+                 extra=[f"{total:,} artículos", f"{datos['NEGOCIACION'].nunique():,} hojas de negociación"]):
+        # El clic se toma antes de dibujar: si cambia el tipo, la siguiente ejecución ya filtra con él
+        dona_clic(inv_n, "c_inv_g", "sel_inv", colores=COLOR_INV, centro=total,
+                  detalle={k: f"{prov_inv.get(k, 0):,} prov." for k in inv_n.index},
+                  ovalo={k: f"{neg_inv.get(k, 0):,} {'hoja' if neg_inv.get(k, 0) == 1 else 'hojas'} neg."
+                         for k in inv_n.index})
 with a:
-    with tarjeta("Todos los productos", "pd_barras", "Artículos distintos por producto, de mayor a menor.",
-                 extra=f"{len(prods)} productos"):
-        barras_clic(prods["art"], "pd_barras_g", "sel_prod", etiquetas=list(prods["nombre"]), vaciable=False,
-                    alto_max=470)
+    with tarjeta("Todos los productos" + (f" · {sel_inv}" if sel_inv else ""), "pd_barras",
+                 "Artículos distintos por producto, de mayor a menor.", extra=f"{len(prods_inv)} productos"):
+        barras_clic(prods_inv["art"], f"pd_barras_g_{sel_inv or 'todos'}", "sel_prod",
+                    etiquetas=list(prods_inv["nombre"]), vaciable=False, alto_max=470, n_corto=24)
 with b:
     with tarjeta(f"Artículos de {nombre_prod}", "pd_dona", "Por proveedor.", extra=f"{n_art(dp):,} artículos"):
-        sel_pp = dona_clic(conteo(dp, "PROV_CORTO"), f"pd_dona_{sel_prod}", f"sel_pp_{sel_prod}", alto=220,
+        sel_pp = dona_clic(conteo(dp, "PROV_CORTO"), f"pd_dona_{sel_inv or 'todos'}_{sel_prod}", clave_pp, alto=220,
                            max_items=10, centro=n_art(dp))
 da = dp[dp["PROV_CORTO"] == sel_pp] if sel_pp and sel_pp != OTROS else dp
-titulo_art = nombre_prod + (f" · {sel_pp}" if da is not dp else "")
-if da is not dp:
+titulo_art = nombre_prod + (f" · {sel_inv}" if sel_inv else "") + (f" · {sel_pp}" if da is not dp else "")
+if sel_inv or da is not dp:
     st.write("")
-    barra_seleccion("prod", [nombre_prod, sel_pp], [f"sel_pp_{sel_prod}"])
+    barra_seleccion("prod", [x for x in [sel_inv, nombre_prod if da is not dp else None,
+                                         sel_pp if da is not dp else None] if x], ["sel_inv", clave_pp])
 
 st.write("")
 with tarjeta(f"Artículos de {titulo_art}", "pd_tabla", "Presentación, inventario, cobertura y costo de cada artículo.",
