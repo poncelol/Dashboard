@@ -673,13 +673,12 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
 .pie { text-align: center; margin-top: 40px; font-size: .75rem; color: var(--tenue); }
 
 /* ── Responsivo ─────────────────────────────────────── */
-/* Productos: en pantallas medianas, tipo de inventario y dona lado a lado y las barras abajo a todo lo ancho.
+/* Productos: en pantallas medianas, tipo de inventario y barras lado a lado (o una debajo de otra si no caben).
    Unidades operativas: las regiones bajan debajo del mapa. */
 @media (max-width: 1200px) {
   .st-key-fila_prod [data-testid="stHorizontalBlock"], .st-key-fila_reg [data-testid="stHorizontalBlock"] {
     flex-wrap: wrap; row-gap: 1rem; }
   .st-key-fila_prod [data-testid="stColumn"] { flex: 1 1 calc(50% - 1rem) !important; min-width: 280px; }
-  .st-key-fila_prod [data-testid="stColumn"]:nth-child(2) { order: 3; flex-basis: 100% !important; }
   .st-key-fila_reg [data-testid="stColumn"] { flex: 1 1 100% !important; }
 }
 @media (max-width: 1100px) {
@@ -1305,8 +1304,7 @@ with st.container():
 # PRODUCTOS Y ARTÍCULOS: el tipo de inventario elegido filtra los productos y sus artículos
 # ──────────────────────────────────────────────────────────────
 seccion("productos", "<b>①</b> Si quieres, haz clic en un tipo de inventario · <b>②</b> elige un producto haciendo "
-        "clic en su barra o búscalo por nombre · <b>③</b> haz clic en un proveedor de la dona para ver solo sus "
-        "artículos.")
+        "clic en su barra o búscalo por nombre · abajo aparecen sus artículos.")
 inv_n = conteo(datos, "INVENTARIO")
 sel_inv = st.session_state.get("sel_inv")
 sel_inv = sel_inv if sel_inv in inv_n.index else None
@@ -1324,9 +1322,8 @@ with st.container(key="buscar_prod"):
                  format_func=lambda k: f"{prods_inv.at[k, 'nombre']}  ·  {prods_inv.at[k, 'art']:,} artículos")
 st.write("")
 
-clave_pp = f"sel_pp_{sel_inv or 'todos'}_{sel_prod}"
 with st.container(key="fila_prod"):
-    i, a, b = st.columns([2, 3, 2], gap="medium")
+    i, a = st.columns([2, 3], gap="medium")
 with i:
     prov_inv = datos.groupby("INVENTARIO")["CVE"].nunique()
     neg_inv = datos.groupby("INVENTARIO")["NEGOCIACION"].nunique()
@@ -1342,16 +1339,11 @@ with a:
                  "Artículos distintos por producto, de mayor a menor.", extra=f"{len(prods_inv)} productos"):
         barras_clic(prods_inv["art"], f"pd_barras_g_{sel_inv or 'todos'}", "sel_prod",
                     etiquetas=list(prods_inv["nombre"]), vaciable=False, alto_max=470, n_corto=24)
-with b:
-    with tarjeta(f"Artículos de {nombre_prod}", "pd_dona", "Por proveedor.", extra=f"{n_art(dp):,} artículos"):
-        sel_pp = dona_clic(conteo(dp, "PROV_CORTO"), f"pd_dona_{sel_inv or 'todos'}_{sel_prod}", clave_pp, alto=220,
-                           max_items=10, centro=n_art(dp))
-da = dp[dp["PROV_CORTO"] == sel_pp] if sel_pp and sel_pp != OTROS else dp
-titulo_art = nombre_prod + (f" · {sel_inv}" if sel_inv else "") + (f" · {sel_pp}" if da is not dp else "")
-if sel_inv or da is not dp:
+da = dp
+titulo_art = nombre_prod + (f" · {sel_inv}" if sel_inv else "")
+if sel_inv:
     st.write("")
-    barra_seleccion("prod", [x for x in [sel_inv, nombre_prod if da is not dp else None,
-                                         sel_pp if da is not dp else None] if x], ["sel_inv", clave_pp])
+    barra_seleccion("prod", [sel_inv], ["sel_inv"])
 
 st.write("")
 with tarjeta(f"Artículos de {titulo_art}", "pd_tabla", "Presentación, inventario, cobertura y costo de cada artículo.",
