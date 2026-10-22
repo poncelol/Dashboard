@@ -121,6 +121,29 @@ AZUL = "#2E6B9E"
 P626, P7420, P1255_60, P1255 = "#1E5B4F", "#9B2247", "#CFB579", "#A57F2C"
 P627, P7421, P7402 = "#002F2A", "#611232", "#E6D194"
 CLAROS = {P1255_60, P7402}   # fondos claros: el ícono va en verde oscuro, no en blanco
+BANDA, DORADO = "#4A0E25", "#BC955C"   # encabezado: guinda profundo y línea dorada
+
+# Emblema de Alimentación para el Bienestar (sol sobre hojas y libro abierto), dibujado en SVG
+LOGO = f"""<svg width="46" height="46" viewBox="0 0 120 120" aria-label="Alimentación para el Bienestar" role="img">
+<defs>
+ <linearGradient id="lg-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EAD39B"/><stop offset="1" stop-color="#C9A563"/></linearGradient>
+ <linearGradient id="lg-o" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C99A3F"/><stop offset="1" stop-color="#8F6A22"/></linearGradient>
+ <clipPath id="lg-k"><rect x="28" y="8" width="64" height="84"/></clipPath>
+</defs>
+<g clip-path="url(#lg-k)">
+ <rect x="28" y="8" width="64" height="84" fill="url(#lg-c)"/>
+ <path stroke="{BANDA}" stroke-width="2.4"
+  d="M60 60 L20 40 M60 60 L20 10 M60 60 L42 0 M60 60 L60 0 M60 60 L78 0 M60 60 L100 10 M60 60 L100 40"/>
+ <circle cx="60" cy="58" r="17" fill="url(#lg-o)" stroke="{BANDA}" stroke-width="2.6"/>
+ <g stroke="{BANDA}" stroke-width="2.6">
+  <path d="M20 56 C40 58 54 70 60 96 L20 96 Z" fill="url(#lg-c)"/><path d="M100 56 C80 58 66 70 60 96 L100 96 Z" fill="url(#lg-c)"/>
+  <path d="M20 66 C38 68 52 78 60 96 L20 96 Z" fill="#B88A3A"/><path d="M100 66 C82 68 68 78 60 96 L100 96 Z" fill="#B88A3A"/>
+  <path d="M20 76 C36 78 50 86 60 96 L20 96 Z" fill="url(#lg-c)"/><path d="M100 76 C84 78 70 86 60 96 L100 96 Z" fill="url(#lg-c)"/>
+  <path d="M20 85 C34 87 48 91 60 96 L20 96 Z" fill="#B88A3A"/><path d="M100 85 C86 87 72 91 60 96 L100 96 Z" fill="#B88A3A"/>
+ </g>
+</g>
+<path d="M14 93 Q60 116 106 89 Q62 106 14 93 Z" fill="url(#lg-o)"/>
+</svg>"""
 
 # Íconos de línea (trazos de Lucide, licencia ISC): heredan el color del texto con currentColor
 ICONOS = {
@@ -169,7 +192,7 @@ TEMAS = {
         paleta=[GUINDA_MED, VERDE_MED, ORO, AZUL, VERDE_CLARO, GUINDA, "#7A5C1E", "#B5547A", "#5F6B6D"],
         regiones=[GUINDA_MED, VERDE_MED, ORO, AZUL, VERDE_CLARO, GUINDA, "#7A5C1E", "#B5547A", "#5F6B6D",
                   "#4C7A3A", "#7B4F9E", "#C06A2B"],
-        verde=VERDE_MED, oro=ORO, azul=AZUL, verde_claro=VERDE_CLARO,
+        verde=VERDE_MED, oro=ORO, azul=AZUL, verde_claro=VERDE_CLARO, banda=BANDA, dorado=DORADO,
         sombra="0 1px 1px 0 rgb(0 0 0 / .05), 0 1px 2px 0 rgb(0 0 0 / .02)",
     ),
     "oscuro": dict(
@@ -179,7 +202,7 @@ TEMAS = {
         paleta=["#E0698C", "#4FB39A", "#D9AE55", "#6AA6DE", "#8FD3C2", "#C77D93", "#B8955A", "#E59AB3", "#94A3B8"],
         regiones=["#E0698C", "#4FB39A", "#D9AE55", "#6AA6DE", "#8FD3C2", "#C77D93", "#B8955A", "#E59AB3", "#94A3B8",
                   "#8CC26E", "#B58BD9", "#E8955A"],
-        verde="#4FB39A", oro="#D9AE55", azul="#6AA6DE", verde_claro="#8FD3C2",
+        verde="#4FB39A", oro="#D9AE55", azul="#6AA6DE", verde_claro="#8FD3C2", banda=BANDA, dorado=DORADO,
         sombra="0 1px 2px 0 rgb(0 0 0 / .35)",
     ),
 }
@@ -326,7 +349,7 @@ def centros_region():
 
 
 # ──────────────────────────────────────────────────────────────
-# TEMA (va primero: define el CSS). El interruptor se dibuja más abajo, en el encabezado; su valor
+# TEMA (va primero: define el CSS). El botón de tema se dibuja más abajo, en el encabezado; su valor
 # ya está en session_state al empezar cada ejecución.
 # ──────────────────────────────────────────────────────────────
 def md(texto, destino=st):
@@ -463,29 +486,35 @@ details.kpi-det .nombres li.vacio { color: var(--tenue); font-style: italic; bor
 .lista .ico { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; color: #fff; }
 .lista b { color: var(--texto); font-weight: 600; }
 
-/* ── Header superior (ancho completo) ─────────────────── */
-.topbar { background: var(--card); display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; height: 64px; margin-bottom: 28px;
-  box-shadow: 0 0 0 100vmax var(--card), 0 1px 0 100vmax var(--borde); clip-path: inset(0 -100vmax -1px -100vmax); }
-.topbar .crumb { font-size: .875rem; color: var(--texto3); }
-.topbar .crumb b { color: var(--texto); font-weight: 600; }
-.topbar .fecha { display: inline-flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--texto2);
-  font-weight: 500; border: 1px solid var(--borde); border-radius: 8px; padding: 6px 12px; white-space: nowrap; }
-.topbar .fecha .origen { color: var(--tenue); }
-/* Controles del encabezado (modo oscuro y actualizar datos) */
-.st-key-actualizar button { background: var(--card) !important; border: 1px solid var(--borde) !important;
-  color: var(--texto2) !important; border-radius: 8px !important; font-size: .8rem; }
-.st-key-actualizar button:hover { border-color: var(--acento) !important; color: var(--acento) !important; }
-.st-key-actualizar button * { color: inherit !important; }
-.st-key-controles { align-items: flex-end; }
-.topbar .fecha i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok);
-  box-shadow: 0 0 0 3px rgb(62 201 114 / .2); }
+/* ── Encabezado institucional: banda guinda a todo lo ancho con línea dorada abajo ── */
+.st-key-hero { position: relative; background: var(--banda); padding: 22px 0 26px 0 !important; margin-bottom: 28px;
+  box-shadow: 0 0 0 100vmax var(--banda); clip-path: inset(-100vmax -100vmax 0 -100vmax); }
+.st-key-hero::after { content: ""; position: absolute; left: -100vmax; right: -100vmax; bottom: 0; height: 4px;
+  background: var(--dorado); }
+.st-key-hero { flex-wrap: nowrap !important; }   /* el botón de tema siempre arriba a la derecha */
+.st-key-hero > .stElementContainer { flex: 1 1 auto; min-width: 0; }
+.hero .marca { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.hero .marca svg { flex-shrink: 0; }
+.hero .marca .sep { width: 1px; align-self: stretch; background: rgb(255 255 255 / .45); }
+.hero .marca .gob { font-size: .95rem; letter-spacing: .04em; color: #fff; line-height: 1.25; }
+.hero .marca .gob b { font-weight: 800; }
+.hero .marca .dep { display: block; font-size: .82rem; color: rgb(255 255 255 / .9); letter-spacing: 0; }
+.hero .eyebrow { font-size: .78rem; font-weight: 700; letter-spacing: .12em; color: var(--dorado); text-transform: uppercase; }
+.hero h1 { font-size: 2.3rem !important; font-weight: 700 !important; color: #fff !important; margin: 4px 0 0 0;
+  padding: 0 !important; line-height: 1.2; }
+.hero p { margin: 6px 0 0 0; font-size: 1.05rem; color: rgb(255 255 255 / .92) !important; }
+.hero .fecha { margin: 14px 0 8px 0; font-size: .82rem; color: rgb(255 255 255 / .75); }
+/* Controles del encabezado: modo oscuro (botón redondo) y actualizar datos */
+.st-key-controles { flex: 0 0 auto; }
+.st-key-tema button { width: 42px; height: 42px; min-height: 0; padding: 0 !important; border-radius: 50% !important;
+  background: rgb(255 255 255 / .14) !important; border: none !important; color: #fff !important; }
+.st-key-tema button [data-testid="stIconMaterial"] { font-size: 1.35rem; }
+.st-key-tema button:hover { background: rgb(255 255 255 / .26) !important; }
+.st-key-actualizar button { height: 42px; background: transparent !important; border: 1px solid rgb(255 255 255 / .35) !important;
+  color: #fff !important; border-radius: 999px !important; font-size: .8rem; }
+.st-key-actualizar button:hover { border-color: var(--dorado) !important; color: var(--dorado) !important; }
+.st-key-tema button *, .st-key-actualizar button * { color: inherit !important; }
 
-/* ── Título de página ───────────────────────────────── */
-.titulo { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px;
-  flex-wrap: wrap; margin-bottom: 24px; }
-.titulo h1 { font-size: 2.6rem; font-weight: 700; margin: 0; padding: 0; line-height: 1.33; }
-.titulo p { margin: 4px 0 0 0; font-size: 1.1rem; color: var(--texto3); }
 .etiq { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 500; color: var(--texto2);
   background: var(--card); border: 1px solid var(--borde); border-radius: 999px; padding: 3px 10px; margin: 2px 0 2px 6px; }
 .etiq i { width: 7px; height: 7px; border-radius: 50%; }
@@ -657,13 +686,14 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
   .kpis { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
 @media (max-width: 900px) {
-  .titulo h1 { font-size: 1.9rem; }
-  .topbar .crumb span { display: none; }
+  .hero h1 { font-size: 1.9rem !important; }
 }
 @media (max-width: 640px) {
   .block-container { padding-left: 1rem !important; padding-right: 1rem !important; }
-  .topbar { height: auto; min-height: 56px; flex-wrap: wrap; gap: 8px; padding: 10px 0; margin-bottom: 18px; }
-  .titulo { margin-bottom: 16px; }
+  .st-key-hero { padding: 16px 0 20px 0 !important; margin-bottom: 18px; }
+  .st-key-actualizar button span[data-testid="stMarkdownContainer"] { display: none; }
+  .hero h1 { font-size: 1.6rem !important; }
+  .hero p { font-size: .95rem; }
   .banner, .banner.dos { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   /* Una sola columna: el título del recuadro puede ocupar dos renglones en vez de cortarse */
   details.kpi-det .l { white-space: normal; font-size: 1rem !important; }
@@ -1160,19 +1190,22 @@ def barra_seleccion(clave, partes, limpiar):
 # ──────────────────────────────────────────────────────────────
 # ENCABEZADO
 # ──────────────────────────────────────────────────────────────
-md(f'<div class="topbar"><div class="crumb"><span>Alimentación para el Bienestar · </span>'
-   f'<b>Programa de Abasto Rural 2026</b></div>'
-   f'<div class="fecha"><i></i>Situación al {fecha_larga(hoy)}<span class="origen">· {origen}</span></div></div>')
+def cambiar_tema():
+    st.session_state["oscuro"] = not st.session_state["oscuro"]
 
-a, b = st.columns([4, 1], vertical_alignment="bottom")
-with a:
-    md('<div class="titulo"><div><h1>Subgerencia de Abarrotes</h1>'
-       '<p>Programa de Abasto Rural 2026 · proveedores, productos, artículos, marcas y unidades operativas.</p></div></div>')
-with b, st.container(key="controles"):
-    st.toggle(":material/dark_mode: Modo oscuro", key="oscuro")
-    if cfg_od.get("link"):
-        # El callback borra la caché antes de la siguiente ejecución, así el Excel se vuelve a descargar
-        st.button("Actualizar datos", icon=":material/refresh:", key="actualizar", on_click=descargar_excel.clear)
+
+with st.container(key="hero", horizontal=True, vertical_alignment="top", gap="medium"):
+    md(f'<div class="hero"><div class="marca">{LOGO}<span class="sep"></span>'
+       f'<div class="gob">GOBIERNO DE <b>MÉXICO</b><span class="dep">Alimentación para el Bienestar</span></div></div>'
+       f'<div class="eyebrow">Subgerencia de Abarrotes</div><h1>Programa de Abasto Rural 2026</h1>'
+       f'<p>Resumen del catálogo de artículos vigentes · proveedores, productos, marcas y unidades operativas</p>'
+       f'<div class="fecha">Información al {fecha_larga(hoy)} · {origen}</div></div>')
+    with st.container(key="controles", horizontal=True, width="content", gap="small"):
+        if cfg_od.get("link"):
+            # El callback borra la caché antes de la siguiente ejecución, así el Excel se vuelve a descargar
+            st.button("Actualizar datos", icon=":material/refresh:", key="actualizar", on_click=descargar_excel.clear)
+        st.button(":material/contrast:", key="tema", on_click=cambiar_tema,
+                  help="Cambiar a modo claro" if oscuro else "Cambiar a modo oscuro")
 
 # ──────────────────────────────────────────────────────────────
 # BANNER PRINCIPAL: proveedores (CVE), productos (PROD.), artículos (ART.) y ofertas vigentes
