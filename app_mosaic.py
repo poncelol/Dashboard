@@ -379,7 +379,8 @@ html, body, .stApp, [class*="css"], button, input, textarea, select {
 .stApp { background: var(--fondo); color: var(--texto2); }
 .block-container { padding-top: .5rem !important; padding-bottom: 3rem; max-width: 1440px; }
 #MainMenu, footer, [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
-header[data-testid="stHeader"] { background: transparent; }
+/* La barra de Streamlit es invisible pero queda encima del encabezado: que no bloquee los clics */
+header[data-testid="stHeader"] { background: transparent; pointer-events: none; }
 h1, h2, h3, h4 { font-family: 'Inter', sans-serif !important; color: var(--texto); letter-spacing: -.01em; }
 .stApp p, .stApp label { color: var(--texto2); }
 [data-testid="stIconMaterial"] { color: var(--texto3); }
@@ -504,16 +505,17 @@ details.kpi-det .nombres li.vacio { color: var(--tenue); font-style: italic; bor
   padding: 0 !important; line-height: 1.2; }
 .hero p { margin: 6px 0 0 0; font-size: 1.05rem; color: rgb(255 255 255 / .92) !important; }
 .hero .fecha { margin: 14px 0 8px 0; font-size: .82rem; color: rgb(255 255 255 / .75); }
-/* Controles del encabezado: modo oscuro (botón redondo) y actualizar datos */
-.st-key-controles { flex: 0 0 auto; }
-.st-key-tema button { width: 42px; height: 42px; min-height: 0; padding: 0 !important; border-radius: 50% !important;
-  background: rgb(255 255 255 / .14) !important; border: none !important; color: #fff !important; }
-.st-key-tema button [data-testid="stIconMaterial"] { font-size: 1.35rem; }
-.st-key-tema button:hover { background: rgb(255 255 255 / .26) !important; }
+/* Controles del encabezado: interruptor de modo oscuro y actualizar datos, en blanco sobre la banda */
+.st-key-controles { flex: 0 0 auto; align-items: flex-end; }
+.st-key-controles [data-testid="stCheckbox"] p, .st-key-controles [data-testid="stCheckbox"] span[role="img"],
+.st-key-controles [data-testid="stIconMaterial"] { color: #fff !important; }
+.st-key-controles [data-testid="stCheckbox"] label > div:not([data-testid]) { background: rgb(255 255 255 / .3) !important; }
+.st-key-controles [data-testid="stCheckbox"][data-selected="true"] label > div:not([data-testid]) {
+  background: var(--dorado) !important; }
 .st-key-actualizar button { height: 42px; background: transparent !important; border: 1px solid rgb(255 255 255 / .35) !important;
   color: #fff !important; border-radius: 999px !important; font-size: .8rem; }
 .st-key-actualizar button:hover { border-color: var(--dorado) !important; color: var(--dorado) !important; }
-.st-key-tema button *, .st-key-actualizar button * { color: inherit !important; }
+.st-key-actualizar button * { color: inherit !important; }
 
 .etiq { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; font-weight: 500; color: var(--texto2);
   background: var(--card); border: 1px solid var(--borde); border-radius: 999px; padding: 3px 10px; margin: 2px 0 2px 6px; }
@@ -690,7 +692,8 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
 }
 @media (max-width: 640px) {
   .block-container { padding-left: 1rem !important; padding-right: 1rem !important; }
-  .st-key-hero { padding: 16px 0 20px 0 !important; margin-bottom: 18px; }
+  /* En celular el interruptor baja a su propio renglón y el texto usa todo el ancho */
+  .st-key-hero { padding: 12px 0 20px 0 !important; margin-bottom: 18px; flex-wrap: wrap !important; row-gap: 6px; }
   .st-key-actualizar button span[data-testid="stMarkdownContainer"] { display: none; }
   .hero h1 { font-size: 1.6rem !important; }
   .hero p { font-size: .95rem; }
@@ -1190,22 +1193,17 @@ def barra_seleccion(clave, partes, limpiar):
 # ──────────────────────────────────────────────────────────────
 # ENCABEZADO
 # ──────────────────────────────────────────────────────────────
-def cambiar_tema():
-    st.session_state["oscuro"] = not st.session_state["oscuro"]
-
-
 with st.container(key="hero", horizontal=True, vertical_alignment="top", gap="medium"):
     md(f'<div class="hero"><div class="marca">{LOGO}<span class="sep"></span>'
        f'<div class="gob">GOBIERNO DE <b>MÉXICO</b><span class="dep">Alimentación para el Bienestar</span></div></div>'
        f'<div class="eyebrow">Subgerencia de Abarrotes</div><h1>Programa de Abasto Rural 2026</h1>'
        f'<p>Resumen del catálogo de artículos vigentes · proveedores, productos, marcas y unidades operativas</p>'
        f'<div class="fecha">Información al {fecha_larga(hoy)} · {origen}</div></div>')
-    with st.container(key="controles", horizontal=True, width="content", gap="small"):
+    with st.container(key="controles", width="content", gap="small"):
+        st.toggle(":material/dark_mode: Modo oscuro", key="oscuro")
         if cfg_od.get("link"):
             # El callback borra la caché antes de la siguiente ejecución, así el Excel se vuelve a descargar
             st.button("Actualizar datos", icon=":material/refresh:", key="actualizar", on_click=descargar_excel.clear)
-        st.button(":material/contrast:", key="tema", on_click=cambiar_tema,
-                  help="Cambiar a modo claro" if oscuro else "Cambiar a modo oscuro")
 
 # ──────────────────────────────────────────────────────────────
 # BANNER PRINCIPAL: proveedores (CVE), productos (PROD.), artículos (ART.) y ofertas vigentes
