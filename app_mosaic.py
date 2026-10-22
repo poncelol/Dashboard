@@ -420,6 +420,16 @@ details.kpi-det .s { font-size: 1.05rem; }
   color: var(--texto); caret-color: var(--acento); }
 .buscador input::placeholder { color: var(--tenue); opacity: 1; }
 .buscador .cuenta { font-size: .78rem; white-space: nowrap; }
+/* Lupa dentro del buscador de productos */
+.st-key-buscar_prod { position: relative; gap: 0 !important; }
+.st-key-buscar_prod .stElementContainer:has(.lupa) { position: absolute; left: 12px; top: 0; bottom: 0; z-index: 1;
+  display: flex; align-items: center; width: auto !important; pointer-events: none; }
+.st-key-buscar_prod .lupa { position: absolute; top: 50%; left: 0; transform: translateY(-50%); display: flex;
+  color: var(--tenue); }
+.st-key-buscar_prod [data-testid="stMarkdownContainer"] { margin-bottom: 0 !important; }
+.st-key-buscar_prod [data-testid="stSelectbox"] input { padding-left: 34px !important; }
+.tabla-busca .buscador { margin: 0 0 10px 0; }
+.tabla tr.vacio td { color: var(--tenue); font-style: italic; text-align: center; }
 details.kpi-det .nombres li.vacio { color: var(--tenue); font-style: italic; border-bottom: none; }
 
 /* Encabezado de cada sección de la página */
@@ -686,9 +696,10 @@ def porcentaje(parte, total):
     return f"{parte / total:.0%} del total" if total and parte != total else None
 
 
-# Filtra los nombres del listado mientras se escribe (sin acentos ni mayúsculas). st.markdown no ejecuta
-# JavaScript y st.html quita los <svg>: el banner va con st.markdown y solo el script con st.html. El script
-# escucha en todo el documento, así que sirve para cualquier banner, y se registra una sola vez por página.
+# Filtra los renglones de un listado o tabla mientras se escribe (sin acentos ni mayúsculas). st.markdown no
+# ejecuta JavaScript y st.html quita los <svg>: el contenido va con st.markdown y solo el script con st.html.
+# El script escucha en todo el documento, así que sirve para cualquier elemento .buscable (listados del banner y
+# tablas), y se registra una sola vez por página.
 BUSCADOR_JS = """<script>
 if (!window.__buscadorListas) {
   window.__buscadorListas = true;
@@ -696,15 +707,15 @@ if (!window.__buscadorListas) {
   document.addEventListener("input", e => {
     const caja = e.target.closest && e.target.closest(".buscador input");
     if (!caja) return;
-    const det = caja.closest("details"), q = norm(caja.value);
+    const caja_b = caja.closest(".buscable"), q = norm(caja.value);
     let n = 0;
-    det.querySelectorAll(".nombres li:not(.vacio)").forEach(li => {
-      const ok = !q || norm(li.textContent).includes(q);
-      li.hidden = !ok;
+    caja_b.querySelectorAll(".nombres li:not(.vacio), tbody tr:not(.vacio)").forEach(r => {
+      const ok = !q || norm(r.textContent).includes(q);
+      r.hidden = !ok;
       n += ok;
     });
-    det.querySelector(".nombres li.vacio").hidden = n > 0;
-    det.querySelector(".buscador .cuenta").textContent = q ? n.toLocaleString("es-MX") + " de " + det.dataset.total : "";
+    caja_b.querySelector(".vacio").hidden = n > 0;
+    caja_b.querySelector(".buscador .cuenta").textContent = q ? n.toLocaleString("es-MX") + " de " + caja_b.dataset.total : "";
   });
 }
 </script>"""
@@ -717,33 +728,42 @@ def banner(recuadros, clase=""):
     for titulo, icono, valor, sub, nombres in recuadros:
         nombres = sorted(set(nombres))
         html.append(
-            f'<details class="m-card kpi-det" data-total="{len(nombres):,}"><summary><div class="kpi">'
+            f'<details class="m-card kpi-det buscable" data-total="{len(nombres):,}"><summary><div class="kpi">'
             f'<div class="ico">{svg(icono, 30)}</div><div><div class="l" title="{escape(titulo)}">{escape(titulo)}</div>'
             f'<div class="row"><div class="v">{valor:,}</div></div>{f"<div class=s>{sub}</div>" if sub else ""}'
             f'<div class="pista">Clic para ver los nombres</div></div>'
             f'<span class="flecha">{svg("flecha", 18)}</span></div></summary>'
-            f'<label class="buscador">{svg("buscar", 16)}<input type="search" placeholder="Buscar en {escape(titulo.lower())}…"'
-            f' autocomplete="off"><span class="cuenta"></span></label>'
+            f'{buscador(f"Buscar en {titulo.lower()}…")}'
             f'<ul class="nombres">{"".join(f"<li>{escape(n)}</li>" for n in nombres)}'
             f'<li class="vacio" hidden>Sin coincidencias.</li></ul></details>')
     md(f'<div class="banner {clase}">{"".join(html)}</div>')
     st.html(BUSCADOR_JS, unsafe_allow_javascript=True)
 
 
+def buscador(texto):
+    return (f'<label class="buscador">{svg("buscar", 16)}<input type="search" placeholder="{escape(texto)}"'
+            f' autocomplete="off"><span class="cuenta"></span></label>')
+
+
 def guia(texto):
     md(f'<div class="guia">{svg("idea", 16)}<span>{texto}</span></div>')
 
 
-def tabla(encabezados, filas, numericas=(), alto=None):
+def tabla(encabezados, filas, numericas=(), alto=None, buscar=None):
+    """buscar: texto de ayuda del buscador que filtra los renglones de la tabla (sin él, no hay buscador)."""
     th = "".join(f'<th class="{"num" if i in numericas else ""}">{h}</th>' for i, h in enumerate(encabezados))
     tr = "".join(
         "<tr>" + "".join(
             f'<td class="{"num" if i in numericas else ""} {"fuerte" if i == 0 else ""}">{c}</td>'
             for i, c in enumerate(fila)) + "</tr>"
         for fila in filas)
+    if buscar:
+        tr += f'<tr class="vacio" hidden><td colspan="{len(encabezados)}">Sin coincidencias.</td></tr>'
     marco = f' scroll" style="max-height:{alto}px' if alto else ""
-    md(f'<div class="tabla-wrap{marco}"><table class="tabla"><thead><tr>{th}</tr></thead>'
-       f'<tbody>{tr}</tbody></table></div>')
+    html = (f'<div class="tabla-wrap{marco}"><table class="tabla"><thead><tr>{th}</tr></thead>'
+            f'<tbody>{tr}</tbody></table></div>')
+    md(f'<div class="buscable tabla-busca" data-total="{len(filas):,}">{buscador(buscar)}{html}</div>' if buscar
+       else html)
 
 
 def barras_clic(serie, clave, destino, color=None, total=None, alto_max=None, etiquetas=None, vaciable=True,
@@ -948,7 +968,7 @@ def mapa(info: dict, clave, resaltar=None, alto=440):
         color = NEGRO if nacional else T["otros"] if resaltar and sig != resaltar else COLOR_REGION[sig]
         uos = {e: ", ".join(u.removeprefix("U.O. ") for u, ee, _ in unidades if ee == e) for e in estados}
         i = info.get(sig)
-        texto = (f"★ <b>{escape(i['producto'])}</b><br>{i['n_prod']:,} productos regionales" if i
+        texto = (f"Producto estrella: <b>{escape(i['producto'])}</b><br>{i['n_prod']:,} productos regionales" if i
                  else "Sin artículos regionales")
         fig.add_trace(go.Choropleth(
             geojson=gj, featureidkey="properties.name", locations=estados, z=[1] * len(estados),
@@ -1191,7 +1211,8 @@ with st.container():
             fichas = "".join(chip(t, COLOR_INV.get(t, T["texto3"]), int(n))
                              for t, n in tipos[cve].sort_values(ascending=False).items())
             filas.append([escape(r.prov), fichas, cobertura[cve]])
-        tabla(["Proveedor", "Tipos de inventario", "Cobertura"], filas, alto=520)
+        tabla(["Proveedor", "Tipos de inventario", "Cobertura"], filas, alto=520,
+              buscar="Buscar proveedor, tipo de inventario o región…")
 
 # ──────────────────────────────────────────────────────────────
 # PRODUCTOS Y ARTÍCULOS: el tipo de inventario elegido filtra los productos y sus artículos
@@ -1210,8 +1231,10 @@ if st.session_state.get("sel_prod") not in prods_inv.index:
 sel_prod = st.session_state["sel_prod"]
 nombre_prod = prods_inv.at[sel_prod, "nombre"]
 dp = d_inv[d_inv["PROD"] == sel_prod]
-st.selectbox("Buscar producto", list(prods_inv.index), key="sel_prod", label_visibility="collapsed",
-             format_func=lambda k: f"🔎  {prods_inv.at[k, 'nombre']}  ·  {prods_inv.at[k, 'art']:,} artículos")
+with st.container(key="buscar_prod"):
+    md(f'<span class="lupa">{svg("buscar", 16)}</span>')
+    st.selectbox("Buscar producto", list(prods_inv.index), key="sel_prod", label_visibility="collapsed",
+                 format_func=lambda k: f"{prods_inv.at[k, 'nombre']}  ·  {prods_inv.at[k, 'art']:,} artículos")
 st.write("")
 
 clave_pp = f"sel_pp_{sel_inv or 'todos'}_{sel_prod}"
@@ -1251,7 +1274,7 @@ with tarjeta(f"Artículos de {titulo_art}", "pd_tabla", "Presentación, inventar
               "Nacional" if r.ALCANCE == "Nacional" else escape(r.COBERTURA), dinero(r.COSTO_UNIT)]
              for r in da.sort_values(["ARTICULO", "ART_ID"]).itertuples()]
     tabla(["Artículo", "Marca", "Presentación", "Proveedor", "Inventario", "Cobertura", "Costo unitario"],
-          filas, numericas=(6,), alto=440)
+          filas, numericas=(6,), alto=440, buscar="Buscar artículo, clave, marca, proveedor…")
 
 # ──────────────────────────────────────────────────────────────
 # UNIDADES OPERATIVAS: mapa y dona de productos en una tarjeta, regiones como botones y artículos de la región
@@ -1328,6 +1351,6 @@ with tarjeta(f"Artículos {tipo_art} · {nombre_reg}" + (f" · {sel_up}" if sel_
               "Nacional" if r.ALCANCE == "Nacional" else escape(" ".join(r.REGIONES)), dinero(r.COSTO_UNIT)]
              for r in da_reg.sort_values(["PRODUCTO", "ARTICULO", "ART_ID"]).itertuples()]
     tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Regiones", "Costo unitario"],
-          filas, numericas=(7,), alto=440)
+          filas, numericas=(7,), alto=440, buscar="Buscar artículo, clave, producto, marca, proveedor…")
 
 md('<div class="pie">Subgerencia de Abarrotes · Alimentación para el Bienestar · Gobierno de México</div>')
