@@ -1029,28 +1029,31 @@ def mapa(info: dict, clave, resaltar=None, alto=440):
     if not gj:
         st.caption(f"No encontré {MAPA.name} junto a la app: el mapa no se puede dibujar.")
         return
-    fig = go.Figure()
+    # Una sola capa con todos los estados: el contorno (geojson) viaja una vez al navegador y no una por región.
+    # Cada estado lleva su propio color: z es su posición y la escala de colores tiene un escalón por estado.
+    locs, colores, textos = [], [], []
     for sig, (nombre, clave_r, unidades) in REGIONES.items():
-        estados = list(dict.fromkeys(e for _, e, _ in unidades))
         color = NEGRO if nacional else T["otros"] if resaltar and sig != resaltar else COLOR_REGION[sig]
-        uos = {e: ", ".join(u.removeprefix("U.O. ") for u, ee, _ in unidades if ee == e) for e in estados}
         i = info.get(sig)
-        texto = (f"Producto estrella: <b>{escape(i['producto'])}</b><br>{i['n_prod']:,} productos regionales" if i
-                 else "Sin artículos regionales")
-        fig.add_trace(go.Choropleth(
-            geojson=gj, featureidkey="properties.name", locations=estados, z=[1] * len(estados),
-            colorscale=[[0, color], [1, color]], showscale=False,
-            marker_line_color=T["card"], marker_line_width=1,
-            customdata=[[nombre, sig, clave_r, uos[e], texto] for e in estados],
-            hovertemplate="<b>%{customdata[1]} · %{customdata[0]}</b> (clave %{customdata[2]})"
-                          "<br>%{location}: %{customdata[3]}<br>%{customdata[4]}<extra></extra>"))
-    sin = [f["properties"]["name"] for f in gj["features"] if f["properties"]["name"] not in ESTADO_REGION]
-    if sin:   # p. ej. Ciudad de México, que no aparece en la estructura operativa
-        fig.add_trace(go.Choropleth(
-            geojson=gj, featureidkey="properties.name", locations=sin, z=[1] * len(sin),
-            colorscale=[[0, NEGRO if nacional else T["sutil"]], [1, NEGRO if nacional else T["sutil"]]],
-            showscale=False, marker_line_color=T["card"] if nacional else T["borde"], marker_line_width=1,
-            hovertemplate="<b>%{location}</b><br>Sin unidad operativa en la estructura<extra></extra>"))
+        estrella = (f"Producto estrella: <b>{escape(i['producto'])}</b><br>{i['n_prod']:,} productos regionales" if i
+                    else "Sin artículos regionales")
+        for e in dict.fromkeys(e for _, e, _ in unidades):
+            uos = ", ".join(u.removeprefix("U.O. ") for u, ee, _ in unidades if ee == e)
+            locs.append(e)
+            colores.append(color)
+            textos.append(f"<b>{sig} · {nombre}</b> (clave {clave_r})<br>{e}: {uos}<br>{estrella}")
+    for f in gj["features"]:   # p. ej. Ciudad de México, que no aparece en la estructura operativa
+        e = f["properties"]["name"]
+        if e not in ESTADO_REGION:
+            locs.append(e)
+            colores.append(NEGRO if nacional else T["sutil"])
+            textos.append(f"<b>{e}</b><br>Sin unidad operativa en la estructura")
+    n = len(locs)
+    fig = go.Figure(go.Choropleth(
+        geojson=gj, featureidkey="properties.name", locations=locs, z=list(range(n)), zmin=0, zmax=max(n - 1, 1),
+        colorscale=[[k / max(n - 1, 1), c] for k, c in enumerate(colores)], showscale=False,
+        marker_line_color=T["card"], marker_line_width=1, customdata=textos,
+        hovertemplate="%{customdata}<extra></extra>"))
     centros = centros_region()
     siglas = [s for s in REGIONES if s in centros]
     fig.add_trace(go.Scattergeo(
