@@ -1199,7 +1199,7 @@ def barra_seleccion(clave, partes, limpiar):
 with st.container(key="hero", horizontal=True, vertical_alignment="top", gap="medium"):
     md(f'<div class="hero"><div class="marca">{LOGO}<span class="sep"></span>'
        f'<div class="gob">GOBIERNO DE <b>MÉXICO</b><span class="dep">Alimentación para el Bienestar</span></div></div>'
-       f'<div class="eyebrow">Subgerencia de Abarrotes</div><h1>Programa de Abasto Rural 2026</h1>'
+       f'<div class="eyebrow">Programa de Abasto Rural 2026</div><h1>Subgerencia de Abarrotes</h1>'
        f'<p>Resumen del catálogo de artículos vigentes · proveedores, productos, marcas y unidades operativas</p>'
        f'<div class="fecha">Información al {fecha_larga(hoy)} · {origen}</div></div>')
     with st.container(key="controles", width="content", gap="small"):
