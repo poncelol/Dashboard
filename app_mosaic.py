@@ -117,6 +117,10 @@ GUINDA, GUINDA_MED = "#611232", "#9D2449"
 VERDE_MED, VERDE_CLARO = "#235B4E", "#3E8E7E"
 ORO, ORO_CLARO = "#A57F2C", "#BC955C"
 AZUL = "#2E6B9E"
+# Pantones institucionales para los encabezados (banners) y la Lectura rápida
+P626, P7420, P1255_60, P1255 = "#1E5B4F", "#9B2247", "#CFB579", "#A57F2C"
+P627, P7421, P7402 = "#002F2A", "#611232", "#E6D194"
+CLAROS = {P1255_60, P7402}   # fondos claros: el ícono va en verde oscuro, no en blanco
 
 # Íconos de línea (trazos de Lucide, licencia ISC): heredan el color del texto con currentColor
 ICONOS = {
@@ -392,7 +396,7 @@ h1, h2, h3, h4 { font-family: 'Inter', sans-serif !important; color: var(--texto
 [data-testid$="Dropdown"] [role="option"][aria-selected="true"] { color: var(--acento) !important; font-weight: 600; }
 
 /* Banner: cada recuadro es un <details>; al hacer clic se despliega su listado de nombres */
-.banner { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; align-items: start; margin-bottom: 24px; }
+.banner { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; align-items: start; margin-bottom: 24px; }
 details.kpi-det > summary { list-style: none; cursor: pointer; border-radius: 12px; transition: box-shadow .15s; }
 details.kpi-det > summary::-webkit-details-marker { display: none; }
 details.kpi-det > summary:hover { box-shadow: inset 0 0 0 1px rgb(var(--acento-rgb) / .45); }
@@ -403,15 +407,20 @@ details.kpi-det .l { font-size: 1.2rem; }
 /* Título y pista en una sola línea: los cuatro recuadros quedan de la misma altura */
 details.kpi-det .l, details.kpi-det .pista { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 details.kpi-det .v { font-size: 3.2rem; }
-details.kpi-det .ico { width: 58px; height: 58px; }
+details.kpi-det .ico { width: 58px; height: 58px; background: var(--c); color: var(--ci); }
 details.kpi-det .pista { font-size: 1.1rem; color: var(--acento); font-weight: 500; margin-top: 4px; }
+/* Cuatro recuadros en pantallas medianas: letra e ícono un poco más chicos para que el título quepa completo */
+.banner:not(.dos) details.kpi-det .kpi { gap: 12px; padding: 18px 16px; }
+.banner:not(.dos) details.kpi-det .l { font-size: 1rem; letter-spacing: .02em; }
+.banner:not(.dos) details.kpi-det .pista { font-size: .95rem; }
+.banner:not(.dos) details.kpi-det .ico { width: 50px; height: 50px; }
 details.kpi-det[open] > summary { box-shadow: inset 0 0 0 1px rgb(var(--acento-rgb) / .45); }
 details.kpi-det .nombres { margin: 0 20px 16px 20px; border-top: 1px solid var(--linea); }
 details.kpi-det .nombres li { font-size: 1.05rem; }
 details.kpi-det .s { font-size: 1.05rem; }
 /* El script del buscador va en su propio st.html, sin contenido visible */
 .stElementContainer:has(> [data-testid="stHtml"] > script:only-child) { display: none; }
-.banner.dos { grid-template-columns: repeat(2, 1fr); }
+.banner.dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* Buscador de cada listado: filtra solo los nombres de su recuadro */
 .buscador { display: flex; align-items: center; gap: 8px; margin: 12px 20px 4px 20px; padding: 6px 10px;
   background: var(--sutil); border: 1px solid var(--borde); border-radius: 8px; color: var(--tenue); }
@@ -608,7 +617,7 @@ div[class*="st-key-regclic_"] button, div[class*="st-key-leyclic_"] button { opa
 .hz { display: flex; gap: 12px; align-items: flex-start; padding: 16px; font-size: .86rem; color: var(--texto2);
   border-left: 4px solid var(--c); }
 .hz .ico { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
-  color: #fff; background: var(--c); }
+  color: var(--ci, #fff); background: var(--c); }
 .hz b { color: var(--texto); font-weight: 600; }
 
 /* Barra con lo que está seleccionado */
@@ -626,7 +635,7 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
 
 /* ── Responsivo ─────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .banner { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .banner { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .hallazgos { grid-template-columns: repeat(2, 1fr); }
   .kpis { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
@@ -723,12 +732,13 @@ if (!window.__buscadorListas) {
 
 def banner(recuadros, clase=""):
     """Recuadros grandes (<details>): al hacer clic se despliega su listado de nombres, con un buscador propio.
-    recuadros: (título, ícono, valor, subtítulo, nombres)."""
+    recuadros: (título, ícono, valor, subtítulo, nombres, color)."""
     html = []
-    for titulo, icono, valor, sub, nombres in recuadros:
+    for titulo, icono, valor, sub, nombres, color in recuadros:
         nombres = sorted(set(nombres))
         html.append(
-            f'<details class="m-card kpi-det buscable" data-total="{len(nombres):,}"><summary><div class="kpi">'
+            f'<details class="m-card kpi-det buscable" data-total="{len(nombres):,}" style="--c:{color};'
+            f'--ci:{P627 if color in CLAROS else "#fff"}"><summary><div class="kpi">'
             f'<div class="ico">{svg(icono, 30)}</div><div><div class="l" title="{escape(titulo)}">{escape(titulo)}</div>'
             f'<div class="row"><div class="v">{valor:,}</div></div>{f"<div class=s>{sub}</div>" if sub else ""}'
             f'<div class="pista">Clic para ver los nombres</div></div>'
@@ -1100,7 +1110,8 @@ if datos.empty:
 hoy = pd.Timestamp(ahora().date())
 
 
-SECCIONES = {"resumen": "Lectura rápida", "cobertura": "Proveedores y cobertura", "productos": "Productos y artículos",
+SECCIONES = {"resumen": "Lectura rápida", "cobertura": "Proveedores y cobertura", "hojas": "Hojas de negociación",
+             "productos": "Productos y artículos",
              "unidades": "Unidades operativas"}
 
 
@@ -1151,7 +1162,8 @@ BANNER = [
     ("Artículos", "articulo", "ART.", datos.groupby("ART_ID")["ARTICULO"].first()),
     ("Ofertas vigentes", "estrella", "ART.", ofertas.groupby("ART_ID")["ARTICULO"].first()),
 ]
-banner([(titulo, icono, len(por_clave), "", por_clave.dropna()) for titulo, icono, campo, por_clave in BANNER])
+banner([(titulo, icono, len(por_clave), "", por_clave.dropna(), color)
+        for (titulo, icono, campo, por_clave), color in zip(BANNER, [P626, P7420, P1255, P7421])])
 
 # ──────────────────────────────────────────────────────────────
 # LECTURA RÁPIDA
@@ -1167,16 +1179,16 @@ marca_prods = datos.groupby("MARCA")["PROD"].nunique().sort_values(ascending=Fal
 mas_prov = prods.sort_values(["prov", "art"], ascending=False).iloc[0]
 
 hallazgos = [
-    (T["acento"], "proveedor", f"El proveedor con más artículos es <b>{escape(nombre_prov[prov_n.index[0]])}</b>, "
+    (P7420, "proveedor", f"El proveedor con más artículos es <b>{escape(nombre_prov[prov_n.index[0]])}</b>, "
                                f"con <b>{prov_n.iloc[0]:,}</b>."),
-    (T["verde"], "producto", f"El producto con más artículos es <b>{escape(prods['nombre'].iloc[0])}</b>, "
+    (P626, "producto", f"El producto con más artículos es <b>{escape(prods['nombre'].iloc[0])}</b>, "
                              f"con <b>{prods['art'].iloc[0]:,}</b>."),
-    (T["oro"], "marca", f"La marca con más artículos es <b>{escape(marcas.index[0])}</b>, con <b>{marcas.iloc[0]:,}</b>."),
-    (T["azul"], "marca", f"<b>{escape(prov_marcas.index[0])}</b> es el proveedor con más marcas: maneja "
+    (P1255, "marca", f"La marca con más artículos es <b>{escape(marcas.index[0])}</b>, con <b>{marcas.iloc[0]:,}</b>."),
+    (P627, "marca", f"<b>{escape(prov_marcas.index[0])}</b> es el proveedor con más marcas: maneja "
                          f"<b>{prov_marcas.iloc[0]:,}</b>."),
-    (T["verde_claro"], "producto", f"<b>{escape(marca_prods.index[0])}</b> es la marca con más productos distintos: "
+    (P1255_60, "producto", f"<b>{escape(marca_prods.index[0])}</b> es la marca con más productos distintos: "
                                    f"<b>{marca_prods.iloc[0]:,}</b>."),
-    (GUINDA, "estrella", f"<b>{escape(mas_prov['nombre'])}</b> es el producto con más proveedores: "
+    (P7421, "estrella", f"<b>{escape(mas_prov['nombre'])}</b> es el producto con más proveedores: "
                          f"<b>{mas_prov['prov']:,}</b> lo surten."),
 ]
 
@@ -1184,19 +1196,21 @@ md('<nav class="indice">' + "".join(f'<a href="#{k}"><span>{i}</span>{v}</a>'
                                     for i, (k, v) in enumerate(SECCIONES.items(), start=1)) + "</nav>")
 seccion("resumen", "Lo más importante del programa de un vistazo.")
 md('<div class="hallazgos">' + "".join(
-    f'<div class="m-card hz" style="--c:{c}"><div class="ico">{svg(i, 17)}</div><div>{t}</div></div>'
+    f'<div class="m-card hz" style="--c:{c};--ci:{P627 if c in CLAROS else "#fff"}"><div class="ico">{svg(i, 17)}</div><div>{t}</div></div>'
     for c, i, t in hallazgos) + "</div>")
 
 # ──────────────────────────────────────────────────────────────
 # PROVEEDORES Y COBERTURA
 # ──────────────────────────────────────────────────────────────
-seccion("cobertura", "Haz clic en un recuadro para ver sus proveedores y búscalos por nombre · abajo, cada "
-        "proveedor con sus tipos de inventario y su cobertura.")
-# Un proveedor con artículos nacionales y regionales cuenta en los dos recuadros
+seccion("cobertura", "Haz clic en un recuadro para ver sus proveedores y búscalos por nombre · un proveedor "
+        "con artículos nacionales cuenta solo en Nacional; Regional son los que solo tienen cobertura regional.")
+# Cada proveedor cuenta una sola vez: si tiene algún artículo nacional va en Nacional, aunque también tenga regionales
+cve_nal = set(datos.loc[datos["ALCANCE"] == "Nacional", "CVE"])
+cve_reg = set(datos.loc[datos["ALCANCE"] == "Regional", "CVE"]) - cve_nal
 banner([(f"Proveedores · Cobertura {alc.lower()}", icono, d["CVE"].nunique(), f"<b>{n_art(d):,}</b> artículos",
-         d["PROV_CORTO"].dropna())
-        for alc, icono in [("Nacional", "nacional"), ("Regional", "regional")]
-        for d in [datos[datos["ALCANCE"] == alc]]], clase="dos")
+         d["PROV_CORTO"].dropna(), color)
+        for alc, icono, cves, color in [("Nacional", "nacional", cve_nal, P626), ("Regional", "regional", cve_reg, P1255)]
+        for d in [datos[datos["CVE"].isin(cves)]]], clase="dos")
 
 with st.container():
     resumen = (datos.groupby("CVE").agg(prov=("PROV_CORTO", "first"), art=("ART_ID", "nunique"))
@@ -1213,6 +1227,16 @@ with st.container():
             filas.append([escape(r.prov), fichas, cobertura[cve]])
         tabla(["Proveedor", "Tipos de inventario", "Cobertura"], filas, alto=520,
               buscar="Buscar proveedor, tipo de inventario o región…")
+
+# ──────────────────────────────────────────────────────────────
+# HOJAS DE NEGOCIACIÓN: cada hoja es de un solo proveedor y una sola cobertura
+# ──────────────────────────────────────────────────────────────
+seccion("hojas", "Haz clic en un recuadro para ver sus hojas de negociación (número · proveedor) y búscalas.")
+banner([(f"Hojas de negociación · Cobertura {alc.lower()}", icono, d["NEGOCIACION"].nunique(),
+         f"<b>{n_art(d):,}</b> artículos · <b>{d['CVE'].nunique():,}</b> proveedores",
+         (d["NEGOCIACION"].astype(str) + " · " + d["PROV_CORTO"].astype(str)).drop_duplicates(), color)
+        for alc, icono, color in [("Nacional", "nacional", P7420), ("Regional", "regional", P7421)]
+        for d in [datos[datos["ALCANCE"] == alc]]], clase="dos")
 
 # ──────────────────────────────────────────────────────────────
 # PRODUCTOS Y ARTÍCULOS: el tipo de inventario elegido filtra los productos y sus artículos
