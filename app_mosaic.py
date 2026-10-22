@@ -1258,22 +1258,19 @@ md('<div class="hallazgos">' + "".join(
     for c, i, t in hallazgos) + "</div>")
 
 # ──────────────────────────────────────────────────────────────
-# HOJAS DE NEGOCIACIÓN: hojas por cobertura (columna NEGOCIACION). Cada recuadro cuenta las hojas con esa
-# cobertura, sin excluir nada; si una hoja trajera artículos nacionales y regionales, contaría en los dos.
+# HOJAS DE NEGOCIACIÓN: hojas (columna NEGOCIACION) por tipo de inventario y cobertura. Cada recuadro cuenta las
+# hojas con ese tipo y esa cobertura, sin excluir nada; una hoja con artículos de los dos contaría en ambos.
 # ──────────────────────────────────────────────────────────────
-seccion("hojas", "Por cobertura (nacional y regional) y por tipo de inventario (PAR y Oferta) · haz clic en un "
-        "recuadro para ver sus hojas de negociación (número · proveedor) y búscalas.")
-banner([(f"Hojas de negociación · Cobertura {alc.lower()}", icono, d["NEGOCIACION"].nunique(),
-         f"<b>{n_art(d):,}</b> artículos · <b>{d['CVE'].nunique():,}</b> proveedores",
-         (d["NEGOCIACION"].astype(str) + " · " + d["PROV_CORTO"].astype(str)).drop_duplicates(), color)
-        for alc, icono, color in [("Nacional", "nacional", P7420), ("Regional", "regional", P7421)]
-        for d in [datos[datos["ALCANCE"] == alc]]], clase="dos")
-# Las mismas hojas por tipo de inventario (columna TIPO DE INVENTARIO): PAR y Oferta
-banner([(f"Hojas de negociación · {inv}", icono, d["NEGOCIACION"].nunique(),
-         f"<b>{n_art(d):,}</b> artículos · <b>{d['CVE'].nunique():,}</b> proveedores",
-         (d["NEGOCIACION"].astype(str) + " · " + d["PROV_CORTO"].astype(str)).drop_duplicates(), color)
-        for inv, icono, color in [("PAR", "articulo", P627), ("Oferta", "estrella", P1255)]
-        for d in [datos[datos["INVENTARIO"] == inv]]], clase="dos")
+seccion("hojas", "Arriba las hojas PAR y abajo las de Oferta, cada una por cobertura nacional y regional · haz clic en "
+        "un recuadro para ver sus hojas de negociación (número · proveedor) y búscalas.")
+# Una fila por tipo de inventario (PAR arriba, Oferta abajo) y en cada fila un recuadro por cobertura
+for inv, icono_inv in [("PAR", "articulo"), ("Oferta", "estrella")]:
+    banner([(f"Hojas {inv} · Cobertura {alc.lower()}", icono, d["NEGOCIACION"].nunique(),
+             f"<b>{n_art(d):,}</b> artículos · <b>{d['CVE'].nunique():,}</b> proveedores",
+             (d["NEGOCIACION"].astype(str) + " · " + d["PROV_CORTO"].astype(str)).drop_duplicates(), color)
+            for alc, icono, color in [("Nacional", "nacional", P7420 if inv == "PAR" else P626),
+                                      ("Regional", "regional", P7421 if inv == "PAR" else P1255)]
+            for d in [datos[(datos["ALCANCE"] == alc) & (datos["INVENTARIO"] == inv)]]], clase="dos")
 
 # ──────────────────────────────────────────────────────────────
 # PROVEEDORES Y COBERTURA
