@@ -1258,11 +1258,13 @@ md('<div class="hallazgos">' + "".join(
     for c, i, t in hallazgos) + "</div>")
 
 # ──────────────────────────────────────────────────────────────
-# HOJAS DE NEGOCIACIÓN: proveedores por cobertura; uno con artículos nacionales y regionales cuenta en los dos
+# HOJAS DE NEGOCIACIÓN: hojas por cobertura (columna NEGOCIACION). Cada recuadro cuenta las hojas con esa
+# cobertura, sin excluir nada; si una hoja trajera artículos nacionales y regionales, contaría en los dos.
 # ──────────────────────────────────────────────────────────────
-seccion("hojas", "Haz clic en un recuadro para ver los nombres y búscalos.")
-banner([(f"Hojas de negociación · Cobertura {alc.lower()}", icono, d["CVE"].nunique(), f"<b>{n_art(d):,}</b> artículos",
-         d["PROV_CORTO"].dropna(), color)
+seccion("hojas", "Haz clic en un recuadro para ver sus hojas de negociación (número · proveedor) y búscalas.")
+banner([(f"Hojas de negociación · Cobertura {alc.lower()}", icono, d["NEGOCIACION"].nunique(),
+         f"<b>{n_art(d):,}</b> artículos · <b>{d['CVE'].nunique():,}</b> proveedores",
+         (d["NEGOCIACION"].astype(str) + " · " + d["PROV_CORTO"].astype(str)).drop_duplicates(), color)
         for alc, icono, color in [("Nacional", "nacional", P7420), ("Regional", "regional", P7421)]
         for d in [datos[datos["ALCANCE"] == alc]]], clase="dos")
 
