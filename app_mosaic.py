@@ -155,6 +155,14 @@ def svg(nombre, tam=18):
             f'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{ICONOS[nombre]}</svg>')
 
 
+def icono_mask(nombre, tam=18):
+    """Ícono para st.html: su sanitizador quita los <svg>, así que el ícono va como máscara CSS (data URI)
+    pintada con el color del texto, igual que los <svg> con stroke="currentColor"."""
+    dato = base64.b64encode(svg(nombre, tam).replace('stroke="currentColor"', 'stroke="#000"').encode()).decode()
+    return (f'<span class="svgi" aria-hidden="true" style="width:{tam}px;height:{tam}px;'
+            f'--i:url(data:image/svg+xml;base64,{dato})"></span>')
+
+
 # Tokens de tema (grises de Mosaic; en oscuro, colores de datos más claros para que contrasten)
 TEMAS = {
     "claro": dict(
@@ -408,6 +416,8 @@ details.kpi-det[open] > summary { box-shadow: inset 0 0 0 1px rgb(var(--acento-r
 details.kpi-det .nombres { margin: 0 20px 16px 20px; border-top: 1px solid var(--linea); }
 details.kpi-det .nombres li { font-size: 1.05rem; }
 details.kpi-det .s { font-size: 1.05rem; }
+.svgi { display: inline-block; flex-shrink: 0; background: currentColor;
+  -webkit-mask: var(--i) center / contain no-repeat; mask: var(--i) center / contain no-repeat; }
 .banner.dos { grid-template-columns: repeat(2, 1fr); }
 /* Buscador de cada listado: filtra solo los nombres de su recuadro */
 .buscador { display: flex; align-items: center; gap: 8px; margin: 12px 20px 4px 20px; padding: 6px 10px;
@@ -714,11 +724,11 @@ def banner(recuadros, clase=""):
         nombres = sorted(set(nombres))
         html.append(
             f'<details class="m-card kpi-det" data-total="{len(nombres):,}"><summary><div class="kpi">'
-            f'<div class="ico">{svg(icono, 30)}</div><div><div class="l" title="{escape(titulo)}">{escape(titulo)}</div>'
+            f'<div class="ico">{icono_mask(icono, 30)}</div><div><div class="l" title="{escape(titulo)}">{escape(titulo)}</div>'
             f'<div class="row"><div class="v">{valor:,}</div></div>{f"<div class=s>{sub}</div>" if sub else ""}'
             f'<div class="pista">Clic para ver los nombres</div></div>'
-            f'<span class="flecha">{svg("flecha", 18)}</span></div></summary>'
-            f'<label class="buscador">{svg("buscar", 16)}<input type="search" placeholder="Buscar en {escape(titulo.lower())}…"'
+            f'<span class="flecha">{icono_mask("flecha", 18)}</span></div></summary>'
+            f'<label class="buscador">{icono_mask("buscar", 16)}<input type="search" placeholder="Buscar en {escape(titulo.lower())}…"'
             f' autocomplete="off"><span class="cuenta"></span></label>'
             f'<ul class="nombres">{"".join(f"<li>{escape(n)}</li>" for n in nombres)}'
             f'<li class="vacio" hidden>Sin coincidencias.</li></ul></details>')
