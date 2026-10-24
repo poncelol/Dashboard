@@ -772,10 +772,14 @@ if (!window.__buscadorListas) {
   document.addEventListener("input", e => {
     const caja = e.target.closest && e.target.closest(".buscador input");
     if (!caja) return;
-    const caja_b = caja.closest(".buscable"), q = norm(caja.value);
+    const caja_b = caja.closest(".buscable"), q = norm(caja.value), palabras = q.split(/\\s+/).filter(Boolean);
     let n = 0;
     caja_b.querySelectorAll(".nombres li:not(.vacio), tbody tr:not(.vacio)").forEach(r => {
-      const ok = !q || norm(r.textContent).includes(q);
+      // Texto de cada celda separado por espacios, más el texto oculto data-busca (claves, regiones, razón social);
+      // cada palabra escrita debe aparecer en algún lado del renglón, en cualquier orden
+      const celdas = r.cells ? Array.from(r.cells, c => c.textContent).join(" ") : r.textContent;
+      const texto = norm(celdas + " " + (r.dataset.busca || ""));
+      const ok = palabras.every(p => texto.includes(p));
       r.hidden = !ok;
       n += ok;
     });
@@ -815,14 +819,16 @@ def guia(texto):
     md(f'<div class="guia">{svg("idea", 16)}<span>{texto}</span></div>')
 
 
-def tabla(encabezados, filas, numericas=(), alto=None, buscar=None):
-    """buscar: texto de ayuda del buscador que filtra los renglones de la tabla (sin él, no hay buscador)."""
+def tabla(encabezados, filas, numericas=(), alto=None, buscar=None, busca_extra=None):
+    """buscar: texto de ayuda del buscador que filtra los renglones de la tabla (sin él, no hay buscador).
+    busca_extra: por renglón, texto que no se ve pero también se busca (claves, regiones, razón social…)."""
     th = "".join(f'<th class="{"num" if i in numericas else ""}">{h}</th>' for i, h in enumerate(encabezados))
+    extra = busca_extra or [""] * len(filas)
     tr = "".join(
-        "<tr>" + "".join(
+        (f'<tr data-busca="{escape(x)}">' if x else "<tr>") + "".join(
             f'<td class="{"num" if i in numericas else ""} {"fuerte" if i == 0 else ""}">{c}</td>'
             for i, c in enumerate(fila)) + "</tr>"
-        for fila in filas)
+        for fila, x in zip(filas, extra))
     if buscar:
         tr += f'<tr class="vacio" hidden><td colspan="{len(encabezados)}">Sin coincidencias.</td></tr>'
     marco = f' scroll" style="max-height:{alto}px' if alto else ""
@@ -1075,6 +1081,18 @@ def texto_cobertura(g) -> str:
     return "".join(chip(a, COLOR_ALCANCE[a]) for a in ["Nacional", "Regional"] if (g["ALCANCE"] == a).any()) or "–"
 
 
+def busca_regiones(siglas) -> str:
+    """Texto oculto para el buscador: sigla, nombre, clave y unidades operativas de cada región."""
+    return " ".join(f"{s} {REGIONES[s][0]} {REGIONES[s][1]} " + " ".join(f"{u} {e}" for u, e, _ in REGIONES[s][2])
+                    for s in dict.fromkeys(siglas) if s in REGIONES)
+
+
+def busca_articulo(r) -> str:
+    """Texto oculto de un renglón de artículos: claves, razón social, código de barras y regiones."""
+    return " ".join(str(x) for x in [r.PROD, r.PRODUCTO, r.CVE, r.PROVEEDOR, r.CODIGO_BARRAS, r.NEGOCIACION,
+                                      r.ALCANCE, busca_regiones(r.REGIONES)] if pd.notna(x))
+
+
 # ──────────────────────────────────────────────────────────────
 # DATOS
 # ──────────────────────────────────────────────────────────────
@@ -1292,13 +1310,16 @@ with st.container():
     with tarjeta("Proveedores · todos", "c_prov",
                  "Cada proveedor con sus tipos de inventario y si su cobertura es nacional o regional.",
                  extra=f"{len(resumen):,} proveedores"):
-        filas = []
+        razon = datos.groupby("CVE")["PROVEEDOR"].first()
+        regs_prov = datos.groupby("CVE")["REGIONES"].agg(lambda s: [x for t in s for x in t])
+        filas, ocultos = [], []
         for cve, r in resumen.iterrows():
             fichas = "".join(chip(t, COLOR_INV.get(t, T["texto3"]), int(n))
                              for t, n in tipos[cve].sort_values(ascending=False).items())
             filas.append([escape(r.prov), fichas, cobertura[cve]])
+            ocultos.append(f"{cve} {razon.get(cve, '')} {busca_regiones(regs_prov[cve])}")
         tabla(["Proveedor", "Tipos de inventario", "Cobertura"], filas, alto=520,
-              buscar="Buscar proveedor, tipo de inventario o región…")
+              buscar="Buscar proveedor, tipo de inventario o región…", busca_extra=ocultos)
 
 # ──────────────────────────────────────────────────────────────
 # PRODUCTOS Y ARTÍCULOS: el tipo de inventario elegido filtra los productos y sus artículos
@@ -1348,13 +1369,15 @@ if sel_inv:
 st.write("")
 with tarjeta(f"Artículos de {titulo_art}", "pd_tabla", "Presentación, inventario, cobertura y costo de cada artículo.",
              extra=f"{n_art(da):,} artículos"):
+    renglones = list(da.sort_values(["ARTICULO", "ART_ID"]).itertuples())
     filas = [[f"{escape(r.ARTICULO)}<small>ART. {escape(r.ART_ID)}</small>", escape(r.MARCA),
               escape(r.PRESENTACION), escape(r.PROV_CORTO),
               chip(r.INVENTARIO, COLOR_INV.get(r.INVENTARIO, T["texto3"])),
               "Nacional" if r.ALCANCE == "Nacional" else escape(r.COBERTURA), dinero(r.COSTO_UNIT)]
-             for r in da.sort_values(["ARTICULO", "ART_ID"]).itertuples()]
+             for r in renglones]
     tabla(["Artículo", "Marca", "Presentación", "Proveedor", "Inventario", "Cobertura", "Costo unitario"],
-          filas, numericas=(6,), alto=440, buscar="Buscar artículo, clave, marca, proveedor…")
+          filas, numericas=(6,), alto=440, buscar="Buscar artículo, clave, marca, proveedor…",
+          busca_extra=[busca_articulo(r) for r in renglones])
 
 # ──────────────────────────────────────────────────────────────
 # UNIDADES OPERATIVAS: mapa y dona de productos en una tarjeta, regiones como botones y artículos de la región
@@ -1427,11 +1450,13 @@ with tarjeta(f"Artículos {tipo_art} · {nombre_reg}" + (f" · {sel_up}" if sel_
              "Artículos con cobertura nacional: llegan a todas las regiones." if sel_reg == NAL else
              "Artículos con cobertura regional que llegan a esta región (los nacionales llegan a todas).",
              extra=f"{n_art(da_reg):,} artículos"):
+    renglones = list(da_reg.sort_values(["PRODUCTO", "ARTICULO", "ART_ID"]).itertuples())
     filas = [[f"{escape(r.ARTICULO)}<small>ART. {escape(r.ART_ID)}</small>", escape(r.PRODUCTO), escape(r.MARCA),
               escape(r.PRESENTACION), escape(r.PROV_CORTO), chip(r.INVENTARIO, COLOR_INV.get(r.INVENTARIO, T["texto3"])),
               "Nacional" if r.ALCANCE == "Nacional" else escape(" ".join(r.REGIONES)), dinero(r.COSTO_UNIT)]
-             for r in da_reg.sort_values(["PRODUCTO", "ARTICULO", "ART_ID"]).itertuples()]
+             for r in renglones]
     tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Regiones", "Costo unitario"],
-          filas, numericas=(7,), alto=440, buscar="Buscar artículo, clave, producto, marca, proveedor…")
+          filas, numericas=(7,), alto=440, buscar="Buscar artículo, clave, producto, marca, proveedor…",
+          busca_extra=[busca_articulo(r) for r in renglones])
 
 md('<div class="pie">Subgerencia de Abarrotes · Alimentación para el Bienestar · Gobierno de México</div>')
