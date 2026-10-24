@@ -460,6 +460,19 @@ details.kpi-det .s { font-size: 1.05rem; }
   color: var(--texto); caret-color: var(--acento); }
 .buscador input::placeholder { color: var(--tenue); opacity: 1; }
 .buscador .cuenta { font-size: .78rem; white-space: nowrap; }
+/* Sugerencias del buscador: opciones ya listas (proveedor, marca, región…) que se despliegan al enfocar o escribir */
+.buscador { position: relative; }
+.buscador .sugerencias { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; list-style: none;
+  margin: 0; padding: 4px; max-height: 280px; overflow-y: auto; background: var(--card); border: 1px solid var(--borde);
+  border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
+.buscador .sugerencias li { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px;
+  border-radius: 6px; cursor: pointer; font-size: .85rem; color: var(--texto); }
+.buscador .sugerencias[hidden], .buscador .sugerencias li[hidden] { display: none; }
+.buscador .sugerencias li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.buscador .sugerencias li small { font-size: .7rem; font-weight: 600; color: var(--tenue); text-transform: uppercase;
+  letter-spacing: .04em; white-space: nowrap; }
+.buscador .sugerencias li:hover, .buscador .sugerencias li.activa { background: rgb(var(--acento-rgb) / .1); }
+.buscador .sugerencias li.activa span { color: var(--acento); }
 /* Lupa dentro del buscador de productos */
 .st-key-buscar_prod { position: relative; gap: 0 !important; }
 .st-key-buscar_prod .stElementContainer:has(.lupa) { position: absolute; left: 12px; top: 0; bottom: 0; z-index: 1;
@@ -769,9 +782,62 @@ BUSCADOR_JS = """<script>
 if (!window.__buscadorListas) {
   window.__buscadorListas = true;
   const norm = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const entrada = e => e.target.closest && e.target.closest(".buscador input");
+  // Sugerencias: sin texto se ven las primeras de cada grupo; al escribir, las que contienen todas las palabras
+  const sugerir = caja => {
+    const lista = caja.parentElement.querySelector(".sugerencias");
+    if (!lista) return;
+    const q = norm(caja.value), palabras = q.split(/\\s+/).filter(Boolean), porGrupo = {};
+    let n = 0;
+    lista.querySelectorAll("li").forEach(li => {
+      li.classList.remove("activa");
+      const v = norm(li.dataset.v), g = li.dataset.g;
+      let ok = q ? v !== q && palabras.every(p => v.includes(p)) : (porGrupo[g] = (porGrupo[g] || 0) + 1) <= 3;
+      ok = ok && n < 10;
+      li.hidden = !ok;
+      n += ok;
+    });
+    lista.hidden = n === 0;
+  };
+  const elegir = (caja, li) => {
+    caja.value = li.dataset.v;
+    caja.dispatchEvent(new Event("input", {bubbles: true}));
+    caja.parentElement.querySelector(".sugerencias").hidden = true;
+  };
+  document.addEventListener("focusin", e => { const caja = entrada(e); if (caja) sugerir(caja); });
+  document.addEventListener("focusout", e => {
+    const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
+    if (lista) lista.hidden = true;
+  });
+  // mousedown y no click: as\u00ed el campo no pierde el foco antes de elegir
+  document.addEventListener("mousedown", e => {
+    const li = e.target.closest && e.target.closest(".sugerencias li");
+    if (!li) return;
+    e.preventDefault();
+    elegir(li.closest(".buscador").querySelector("input"), li);
+  });
+  document.addEventListener("keydown", e => {
+    const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
+    if (!lista || lista.hidden) return;
+    const vis = Array.from(lista.querySelectorAll("li:not([hidden])"));
+    let i = vis.findIndex(li => li.classList.contains("activa"));
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (i >= 0) vis[i].classList.remove("activa");
+      i = (i + (e.key === "ArrowDown" ? 1 : vis.length - 1 + (i < 0 ? 1 : 0))) % vis.length;
+      vis[i].classList.add("activa");
+      vis[i].scrollIntoView({block: "nearest"});
+    } else if (e.key === "Enter" && i >= 0) {
+      e.preventDefault();
+      elegir(caja, vis[i]);
+    } else if (e.key === "Escape") {
+      lista.hidden = true;
+    }
+  });
   document.addEventListener("input", e => {
-    const caja = e.target.closest && e.target.closest(".buscador input");
+    const caja = entrada(e);
     if (!caja) return;
+    if (e.isTrusted) sugerir(caja);
     const caja_b = caja.closest(".buscable"), q = norm(caja.value), palabras = q.split(/\\s+/).filter(Boolean);
     let n = 0;
     caja_b.querySelectorAll(".nombres li:not(.vacio), tbody tr:not(.vacio)").forEach(r => {
@@ -810,18 +876,24 @@ def banner(recuadros, clase=""):
     st.html(BUSCADOR_JS, unsafe_allow_javascript=True)
 
 
-def buscador(texto):
+def buscador(texto, sugerencias=None):
+    """sugerencias: {grupo: valores}; se despliegan al enfocar el buscador y al elegir una se filtra con ella."""
+    lista = "".join(f'<li data-g="{escape(g)}" data-v="{escape(str(v))}" hidden><span>{escape(str(v))}</span>'
+                    f'<small>{escape(g)}</small></li>'
+                    for g, valores in (sugerencias or {}).items() for v in dict.fromkeys(valores) if pd.notna(v))
     return (f'<label class="buscador">{svg("buscar", 16)}<input type="search" placeholder="{escape(texto)}"'
-            f' autocomplete="off"><span class="cuenta"></span></label>')
+            f' autocomplete="off"><span class="cuenta"></span>'
+            f'{f"<ul class=sugerencias hidden>{lista}</ul>" if lista else ""}</label>')
 
 
 def guia(texto):
     md(f'<div class="guia">{svg("idea", 16)}<span>{texto}</span></div>')
 
 
-def tabla(encabezados, filas, numericas=(), alto=None, buscar=None, busca_extra=None):
+def tabla(encabezados, filas, numericas=(), alto=None, buscar=None, busca_extra=None, sugerencias=None):
     """buscar: texto de ayuda del buscador que filtra los renglones de la tabla (sin él, no hay buscador).
-    busca_extra: por renglón, texto que no se ve pero también se busca (claves, regiones, razón social…)."""
+    busca_extra: por renglón, texto que no se ve pero también se busca (claves, regiones, razón social…).
+    sugerencias: {grupo: valores} que se ofrecen en el buscador (ver buscador())."""
     th = "".join(f'<th class="{"num" if i in numericas else ""}">{h}</th>' for i, h in enumerate(encabezados))
     extra = busca_extra or [""] * len(filas)
     tr = "".join(
@@ -834,7 +906,8 @@ def tabla(encabezados, filas, numericas=(), alto=None, buscar=None, busca_extra=
     marco = f' scroll" style="max-height:{alto}px' if alto else ""
     html = (f'<div class="tabla-wrap{marco}"><table class="tabla"><thead><tr>{th}</tr></thead>'
             f'<tbody>{tr}</tbody></table></div>')
-    md(f'<div class="buscable tabla-busca" data-total="{len(filas):,}">{buscador(buscar)}{html}</div>' if buscar
+    md(f'<div class="buscable tabla-busca" data-total="{len(filas):,}">{buscador(buscar, sugerencias)}{html}</div>'
+       if buscar
        else html)
 
 
@@ -1093,6 +1166,19 @@ def busca_articulo(r) -> str:
                                       r.ALCANCE, busca_regiones(r.REGIONES)] if pd.notna(x))
 
 
+def sugerencias_de(d, columnas) -> dict:
+    """Opciones del buscador de una tabla: {grupo: valores}, cada grupo de más a menos artículos.
+    columnas: {grupo: columna de d}; la columna REGIONES se ofrece con el nombre de cada región."""
+    salida = {}
+    for grupo, col in columnas.items():
+        if col == "REGIONES":
+            cuenta = d.explode("REGIONES").groupby("REGIONES")["ART_ID"].nunique()
+            salida[grupo] = [REGIONES[s][0] for s in cuenta.sort_values(ascending=False).index if s in REGIONES]
+        else:
+            salida[grupo] = list(d.groupby(col)["ART_ID"].nunique().sort_values(ascending=False).index)
+    return salida
+
+
 # ──────────────────────────────────────────────────────────────
 # DATOS
 # ──────────────────────────────────────────────────────────────
@@ -1319,7 +1405,9 @@ with st.container():
             filas.append([escape(r.prov), fichas, cobertura[cve]])
             ocultos.append(f"{cve} {razon.get(cve, '')} {busca_regiones(regs_prov[cve])}")
         tabla(["Proveedor", "Tipos de inventario", "Cobertura"], filas, alto=520,
-              buscar="Buscar proveedor, tipo de inventario o región…", busca_extra=ocultos)
+              buscar="Buscar proveedor, tipo de inventario o región…", busca_extra=ocultos,
+              sugerencias=sugerencias_de(datos, {"Proveedor": "PROV_CORTO", "Inventario": "INVENTARIO",
+                                                 "Región": "REGIONES"}))
 
 # ──────────────────────────────────────────────────────────────
 # PRODUCTOS Y ARTÍCULOS: el tipo de inventario elegido filtra los productos y sus artículos
@@ -1377,7 +1465,9 @@ with tarjeta(f"Artículos de {titulo_art}", "pd_tabla", "Presentación, inventar
              for r in renglones]
     tabla(["Artículo", "Marca", "Presentación", "Proveedor", "Inventario", "Cobertura", "Costo unitario"],
           filas, numericas=(6,), alto=440, buscar="Buscar artículo, clave, marca, proveedor…",
-          busca_extra=[busca_articulo(r) for r in renglones])
+          busca_extra=[busca_articulo(r) for r in renglones],
+          sugerencias=sugerencias_de(da, {"Marca": "MARCA", "Proveedor": "PROV_CORTO", "Inventario": "INVENTARIO",
+                                          "Región": "REGIONES", "Artículo": "ARTICULO"}))
 
 # ──────────────────────────────────────────────────────────────
 # UNIDADES OPERATIVAS: mapa y dona de productos en una tarjeta, regiones como botones y artículos de la región
@@ -1457,6 +1547,8 @@ with tarjeta(f"Artículos {tipo_art} · {nombre_reg}" + (f" · {sel_up}" if sel_
              for r in renglones]
     tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Regiones", "Costo unitario"],
           filas, numericas=(7,), alto=440, buscar="Buscar artículo, clave, producto, marca, proveedor…",
-          busca_extra=[busca_articulo(r) for r in renglones])
+          busca_extra=[busca_articulo(r) for r in renglones],
+          sugerencias=sugerencias_de(da_reg, {"Producto": "PRODUCTO", "Marca": "MARCA", "Proveedor": "PROV_CORTO",
+                                              "Inventario": "INVENTARIO", "Artículo": "ARTICULO"}))
 
 md('<div class="pie">Subgerencia de Abarrotes · Alimentación para el Bienestar · Gobierno de México</div>')
