@@ -487,6 +487,13 @@ details.kpi-det .s { font-size: 1.05rem; }
 .buscador .sugerencias li.op.activa span { color: var(--acento); }
 .buscador .sugerencias mark { background: rgb(var(--acento-rgb) / .18); color: inherit; font-weight: 600;
   border-radius: 3px; padding: 0 1px; }
+/* «Mostrar más / menos» al final de cada sección, alineado con sus opciones */
+.buscador .sugerencias li.mas { gap: 6px; padding: 2px 8px 6px 30px; }
+.buscador .sugerencias li.mas span { font-size: .76rem; font-weight: 600; color: var(--acento); cursor: pointer;
+  padding: 3px 10px; border-radius: 999px; border: 1px solid rgb(var(--acento-rgb) / .35); }
+.buscador .sugerencias li.mas span:hover { background: rgb(var(--acento-rgb) / .1); }
+.buscador .sugerencias li.mas span[hidden] { display: none; }
+.buscador .sugerencias li.mas span[data-acc="menos"] { color: var(--tenue); border-color: var(--borde); }
 /* Pie con las teclas para moverse; se queda abajo al desplazarse */
 .buscador .sugerencias li.pie-sug { position: sticky; bottom: -6px; z-index: 1; gap: 14px; margin: 6px -6px -6px;
   padding: 8px 14px; background: var(--sutil); border-top: 1px solid var(--linea); border-radius: 0 0 10px 10px;
@@ -834,11 +841,14 @@ BUSCADOR_JS = """<script>
   };
   // Sugerencias por sección: sin texto se ven las primeras 3 de cada una; al escribir, hasta 4 de las que contienen
   // todas las palabras. El encabezado de la sección se oculta si no le queda ninguna y dice cuántas coinciden.
+  // «Mostrar más» suma 10 opciones a su sección (lista.__extra guarda cuántas de más lleva cada una).
+  const PASO = 10;
   const sugerir = caja => {
     const lista = caja.parentElement.querySelector(".sugerencias");
     if (!lista) return;
-    const q = norm(caja.value), palabras = q.split(/\\s+/).filter(Boolean), tope = q ? 4 : 3;
-    let total = 0, cab = null, vistos = 0, hallados = 0, primero = true;
+    const extra = lista.__extra = lista.__extra || {};
+    const q = norm(caja.value), palabras = q.split(/\\s+/).filter(Boolean), base = q ? 4 : 3;
+    let total = 0, cab = null, vistos = 0, hallados = 0, primero = true, tope = base;
     const cerrar = () => {
       if (!cab) return;
       cab.hidden = !vistos;
@@ -848,7 +858,17 @@ BUSCADOR_JS = """<script>
                                                               : hallados;
     };
     lista.querySelectorAll("li").forEach(li => {
-      if (li.classList.contains("grupo")) { cerrar(); cab = li; vistos = hallados = 0; return; }
+      if (li.classList.contains("grupo")) {
+        cerrar(); cab = li; vistos = hallados = 0; tope = base + (extra[li.dataset.g] || 0); return;
+      }
+      if (li.classList.contains("mas")) {
+        const quedan = hallados - vistos, mas = li.querySelector("[data-acc=mas]"), menos = li.querySelector("[data-acc=menos]");
+        mas.hidden = !quedan;
+        mas.textContent = "Mostrar " + Math.min(PASO, quedan).toLocaleString("es-MX") + " más";
+        menos.hidden = !(extra[cab.dataset.g] && vistos > base);
+        li.hidden = mas.hidden && menos.hidden;
+        return;
+      }
       if (!li.classList.contains("op")) return;
       li.classList.remove("activa");
       const v = norm(li.dataset.v), ok = !q || (v !== q && palabras.every(p => v.includes(p)));
@@ -867,7 +887,12 @@ BUSCADOR_JS = """<script>
     caja.dispatchEvent(new Event("input", {bubbles: true}));
     caja.parentElement.querySelector(".sugerencias").hidden = true;
   };
-  escuchar("focusin", e => { const caja = entrada(e); if (caja) sugerir(caja); });
+  escuchar("focusin", e => {
+    const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
+    if (!lista) return;
+    lista.__extra = {};
+    sugerir(caja);
+  });
   escuchar("focusout", e => {
     const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
     if (lista) lista.hidden = true;
@@ -877,7 +902,17 @@ BUSCADOR_JS = """<script>
     const li = e.target.closest && e.target.closest(".sugerencias li");
     if (!li) return;
     e.preventDefault();
-    if (li.classList.contains("op")) elegir(li.closest(".buscador").querySelector("input"), li);
+    const caja = li.closest(".buscador").querySelector("input"), acc = e.target.closest("[data-acc]");
+    if (li.classList.contains("op")) elegir(caja, li);
+    else if (acc) {
+      // Mostrar más o menos opciones de la sección de este botón, sin cerrar la lista
+      let cab = li.previousElementSibling;
+      while (cab && !cab.classList.contains("grupo")) cab = cab.previousElementSibling;
+      const extra = li.parentElement.__extra = li.parentElement.__extra || {}, g = cab.dataset.g;
+      extra[g] = acc.dataset.acc === "mas" ? (extra[g] || 0) + PASO : 0;
+      sugerir(caja);
+      if (acc.dataset.acc === "menos") cab.scrollIntoView({block: "nearest"});
+    }
   });
   escuchar("keydown", e => {
     const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
@@ -952,9 +987,12 @@ def buscador(texto, sugerencias=None):
     """sugerencias: {sección: Serie valor → artículos}; se despliegan por sección al enfocar el buscador y al elegir
     una opción se filtra con ella."""
     lista = "".join(
-        f'<li class="grupo" hidden>{svg(ICONO_GRUPO.get(g, "buscar"), 14)}<b>{escape(g)}</b><em></em></li>'
+        f'<li class="grupo" data-g="{escape(g)}" hidden>{svg(ICONO_GRUPO.get(g, "buscar"), 14)}<b>{escape(g)}</b>'
+        f'<em></em></li>'
         + "".join(f'<li class="op" data-v="{escape(str(v))}" hidden><span>{escape(str(v))}</span>'
                   f'<small>{n:,} art.</small></li>' for v, n in valores.items() if pd.notna(v))
+        + '<li class="mas" hidden><span data-acc="mas">Mostrar más</span>'
+          '<span data-acc="menos" hidden>Mostrar menos</span></li>'
         for g, valores in (sugerencias or {}).items() if len(valores))
     return (f'<label class="buscador">{svg("buscar", 16)}<input type="search" placeholder="{escape(texto)}"'
             f' autocomplete="off"><span class="cuenta"></span>'
