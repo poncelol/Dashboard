@@ -462,17 +462,31 @@ details.kpi-det .s { font-size: 1.05rem; }
 .buscador .cuenta { font-size: .78rem; white-space: nowrap; }
 /* Sugerencias del buscador: opciones ya listas (proveedor, marca, región…) que se despliegan al enfocar o escribir */
 .buscador { position: relative; }
-.buscador .sugerencias { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20; list-style: none;
-  margin: 0; padding: 4px; max-height: 280px; overflow-y: auto; background: var(--card); border: 1px solid var(--borde);
-  border-radius: 8px; box-shadow: 0 8px 24px rgb(0 0 0 / .12); }
-.buscador .sugerencias li { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px;
-  border-radius: 6px; cursor: pointer; font-size: .85rem; color: var(--texto); }
+.buscador .sugerencias { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 20; list-style: none;
+  margin: 0; padding: 6px; max-height: 340px; overflow-y: auto; background: var(--card); border: 1px solid var(--borde);
+  border-radius: 10px; box-shadow: 0 12px 32px rgb(0 0 0 / .16); }
+.buscador .sugerencias::-webkit-scrollbar { width: 6px; }
+.buscador .sugerencias::-webkit-scrollbar-thumb { background: var(--borde); border-radius: 999px; }
+.buscador .sugerencias li { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px; border-radius: 6px;
+  font-size: .85rem; color: var(--texto); }
 .buscador .sugerencias[hidden], .buscador .sugerencias li[hidden] { display: none; }
-.buscador .sugerencias li span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.buscador .sugerencias li small { font-size: .7rem; font-weight: 600; color: var(--tenue); text-transform: uppercase;
-  letter-spacing: .04em; white-space: nowrap; }
-.buscador .sugerencias li:hover, .buscador .sugerencias li.activa { background: rgb(var(--acento-rgb) / .1); }
-.buscador .sugerencias li.activa span { color: var(--acento); }
+/* Encabezado de cada sección: ícono, nombre y cuántas opciones coinciden; se queda arriba al desplazarse */
+.buscador .sugerencias li.grupo { position: sticky; top: -6px; z-index: 1; margin-top: 6px; padding: 9px 8px 5px;
+  background: var(--card); border-top: 1px solid var(--linea); border-radius: 0; font-size: .68rem; font-weight: 700;
+  color: var(--tenue); text-transform: uppercase; letter-spacing: .06em; cursor: default; }
+.buscador .sugerencias li.grupo.primero { margin-top: 0; border-top: none; }
+.buscador .sugerencias li.grupo svg { color: var(--acento); flex-shrink: 0; }
+.buscador .sugerencias li.grupo b { flex: 1; font-weight: 700; }
+.buscador .sugerencias li.grupo em { font-style: normal; font-weight: 600; text-transform: none; letter-spacing: 0;
+  color: var(--acento); background: rgb(var(--acento-rgb) / .1); border-radius: 999px; padding: 1px 8px; }
+/* Opciones, con sangría bajo el nombre de su sección y los artículos que tiene a la derecha */
+.buscador .sugerencias li.op { padding-left: 30px; cursor: pointer; }
+.buscador .sugerencias li.op span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.buscador .sugerencias li.op small { font-size: .72rem; font-weight: 500; color: var(--tenue); white-space: nowrap; }
+.buscador .sugerencias li.op:hover, .buscador .sugerencias li.op.activa { background: rgb(var(--acento-rgb) / .1); }
+.buscador .sugerencias li.op.activa span { color: var(--acento); }
+.buscador .sugerencias mark { background: rgb(var(--acento-rgb) / .18); color: inherit; font-weight: 600;
+  border-radius: 3px; padding: 0 1px; }
 /* Lupa dentro del buscador de productos */
 .st-key-buscar_prod { position: relative; gap: 0 !important; }
 .st-key-buscar_prod .stElementContainer:has(.lupa) { position: absolute; left: 12px; top: 0; bottom: 0; z-index: 1;
@@ -783,21 +797,57 @@ if (!window.__buscadorListas) {
   window.__buscadorListas = true;
   const norm = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const entrada = e => e.target.closest && e.target.closest(".buscador input");
-  // Sugerencias: sin texto se ven las primeras de cada grupo; al escribir, las que contienen todas las palabras
+  // Resalta con <mark> las palabras escritas dentro del texto original (con acentos y mayúsculas intactos)
+  const marcar = (el, texto, palabras) => {
+    let base = "";
+    const pos = [], si = new Array(texto.length).fill(false);
+    for (let i = 0; i < texto.length; i++) {
+      const c = texto[i].normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+      base += c;
+      for (let k = 0; k < c.length; k++) pos.push(i);
+    }
+    palabras.forEach(p => {
+      for (let j = base.indexOf(p); j >= 0; j = base.indexOf(p, j + 1))
+        for (let k = j; k < j + p.length; k++) si[pos[k]] = true;
+    });
+    el.textContent = "";
+    for (let i = 0; i < texto.length;) {
+      let j = i;
+      while (j < texto.length && si[j] === si[i]) j++;
+      const trozo = document.createTextNode(texto.slice(i, j));
+      if (si[i]) { const m = document.createElement("mark"); m.appendChild(trozo); el.appendChild(m); }
+      else el.appendChild(trozo);
+      i = j;
+    }
+  };
+  // Sugerencias por sección: sin texto se ven las primeras 3 de cada una; al escribir, hasta 4 de las que contienen
+  // todas las palabras. El encabezado de la sección se oculta si no le queda ninguna y dice cuántas coinciden.
   const sugerir = caja => {
     const lista = caja.parentElement.querySelector(".sugerencias");
     if (!lista) return;
-    const q = norm(caja.value), palabras = q.split(/\\s+/).filter(Boolean), porGrupo = {};
-    let n = 0;
+    const q = norm(caja.value), palabras = q.split(/\\s+/).filter(Boolean), tope = q ? 4 : 3;
+    let total = 0, cab = null, vistos = 0, hallados = 0, primero = true;
+    const cerrar = () => {
+      if (!cab) return;
+      cab.hidden = !vistos;
+      cab.classList.toggle("primero", primero && vistos > 0);
+      if (vistos) primero = false;
+      cab.querySelector("em").textContent = hallados > vistos ? vistos + " de " + hallados.toLocaleString("es-MX")
+                                                              : hallados;
+    };
     lista.querySelectorAll("li").forEach(li => {
+      if (li.classList.contains("grupo")) { cerrar(); cab = li; vistos = hallados = 0; return; }
       li.classList.remove("activa");
-      const v = norm(li.dataset.v), g = li.dataset.g;
-      let ok = q ? v !== q && palabras.every(p => v.includes(p)) : (porGrupo[g] = (porGrupo[g] || 0) + 1) <= 3;
-      ok = ok && n < 10;
-      li.hidden = !ok;
-      n += ok;
+      const v = norm(li.dataset.v), ok = !q || (v !== q && palabras.every(p => v.includes(p)));
+      const ver = ok && vistos < tope;
+      hallados += ok;
+      vistos += ver;
+      total += ver;
+      li.hidden = !ver;
+      if (ver) marcar(li.querySelector("span"), li.dataset.v, palabras);
     });
-    lista.hidden = n === 0;
+    cerrar();
+    lista.hidden = total === 0;
   };
   const elegir = (caja, li) => {
     caja.value = li.dataset.v;
@@ -814,12 +864,12 @@ if (!window.__buscadorListas) {
     const li = e.target.closest && e.target.closest(".sugerencias li");
     if (!li) return;
     e.preventDefault();
-    elegir(li.closest(".buscador").querySelector("input"), li);
+    if (li.classList.contains("op")) elegir(li.closest(".buscador").querySelector("input"), li);
   });
   document.addEventListener("keydown", e => {
     const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
     if (!lista || lista.hidden) return;
-    const vis = Array.from(lista.querySelectorAll("li:not([hidden])"));
+    const vis = Array.from(lista.querySelectorAll("li.op:not([hidden])"));
     let i = vis.findIndex(li => li.classList.contains("activa"));
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -876,11 +926,18 @@ def banner(recuadros, clase=""):
     st.html(BUSCADOR_JS, unsafe_allow_javascript=True)
 
 
+ICONO_GRUPO = {"Proveedor": "proveedor", "Marca": "marca", "Producto": "producto", "Artículo": "articulo",
+               "Región": "regional", "Inventario": "pastel"}
+
+
 def buscador(texto, sugerencias=None):
-    """sugerencias: {grupo: valores}; se despliegan al enfocar el buscador y al elegir una se filtra con ella."""
-    lista = "".join(f'<li data-g="{escape(g)}" data-v="{escape(str(v))}" hidden><span>{escape(str(v))}</span>'
-                    f'<small>{escape(g)}</small></li>'
-                    for g, valores in (sugerencias or {}).items() for v in dict.fromkeys(valores) if pd.notna(v))
+    """sugerencias: {sección: Serie valor → artículos}; se despliegan por sección al enfocar el buscador y al elegir
+    una opción se filtra con ella."""
+    lista = "".join(
+        f'<li class="grupo" hidden>{svg(ICONO_GRUPO.get(g, "buscar"), 14)}<b>{escape(g)}</b><em></em></li>'
+        + "".join(f'<li class="op" data-v="{escape(str(v))}" hidden><span>{escape(str(v))}</span>'
+                  f'<small>{n:,} art.</small></li>' for v, n in valores.items() if pd.notna(v))
+        for g, valores in (sugerencias or {}).items() if len(valores))
     return (f'<label class="buscador">{svg("buscar", 16)}<input type="search" placeholder="{escape(texto)}"'
             f' autocomplete="off"><span class="cuenta"></span>'
             f'{f"<ul class=sugerencias hidden>{lista}</ul>" if lista else ""}</label>')
@@ -1167,15 +1224,16 @@ def busca_articulo(r) -> str:
 
 
 def sugerencias_de(d, columnas) -> dict:
-    """Opciones del buscador de una tabla: {grupo: valores}, cada grupo de más a menos artículos.
-    columnas: {grupo: columna de d}; la columna REGIONES se ofrece con el nombre de cada región."""
+    """Opciones del buscador de una tabla: {sección: Serie valor → artículos}, de más a menos artículos.
+    columnas: {sección: columna de d}; la columna REGIONES se ofrece con el nombre de cada región."""
     salida = {}
     for grupo, col in columnas.items():
         if col == "REGIONES":
             cuenta = d.explode("REGIONES").groupby("REGIONES")["ART_ID"].nunique()
-            salida[grupo] = [REGIONES[s][0] for s in cuenta.sort_values(ascending=False).index if s in REGIONES]
+            cuenta = cuenta[cuenta.index.isin(list(REGIONES))].rename(lambda s: REGIONES[s][0])
         else:
-            salida[grupo] = list(d.groupby(col)["ART_ID"].nunique().sort_values(ascending=False).index)
+            cuenta = d.groupby(col)["ART_ID"].nunique()
+        salida[grupo] = cuenta.sort_values(ascending=False)
     return salida
 
 
