@@ -1592,7 +1592,7 @@ with tarjeta(f"Artículos de {titulo_art}", "pd_tabla", "Presentación, inventar
           filas, numericas=(6,), alto=440, buscar="Buscar artículo, clave, marca, proveedor…",
           busca_extra=[busca_articulo(r) for r in renglones],
           sugerencias=sugerencias_de(da, {"Marca": "MARCA", "Proveedor": "PROV_CORTO", "Inventario": "INVENTARIO",
-                                          "Región": "REGIONES", "Artículo": "ARTICULO"}))
+                                          "Artículo": "ARTICULO"}))
 
 # ──────────────────────────────────────────────────────────────
 # UNIDADES OPERATIVAS: mapa y dona de productos en una tarjeta, regiones como botones y artículos de la región
