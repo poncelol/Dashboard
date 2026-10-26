@@ -487,6 +487,13 @@ details.kpi-det .s { font-size: 1.05rem; }
 .buscador .sugerencias li.op.activa span { color: var(--acento); }
 .buscador .sugerencias mark { background: rgb(var(--acento-rgb) / .18); color: inherit; font-weight: 600;
   border-radius: 3px; padding: 0 1px; }
+/* Pie con las teclas para moverse; se queda abajo al desplazarse */
+.buscador .sugerencias li.pie-sug { position: sticky; bottom: -6px; z-index: 1; gap: 14px; margin: 6px -6px -6px;
+  padding: 8px 14px; background: var(--sutil); border-top: 1px solid var(--linea); border-radius: 0 0 10px 10px;
+  font-size: .72rem; color: var(--tenue); cursor: default; }
+.buscador .sugerencias kbd { font-family: inherit; font-size: .68rem; font-weight: 600; color: var(--texto2);
+  background: var(--card); border: 1px solid var(--borde); border-bottom-width: 2px; border-radius: 4px;
+  padding: 0 5px; margin-right: 3px; }
 /* Lupa dentro del buscador de productos */
 .st-key-buscar_prod { position: relative; gap: 0 !important; }
 .st-key-buscar_prod .stElementContainer:has(.lupa) { position: absolute; left: 12px; top: 0; bottom: 0; z-index: 1;
@@ -791,29 +798,30 @@ def porcentaje(parte, total):
 # Filtra los renglones de un listado o tabla mientras se escribe (sin acentos ni mayúsculas). st.markdown no
 # ejecuta JavaScript y st.html quita los <svg>: el contenido va con st.markdown y solo el script con st.html.
 # El script escucha en todo el documento, así que sirve para cualquier elemento .buscable (listados del banner y
-# tablas), y se registra una sola vez por página.
+# tablas), y se registra una sola vez por página. Dentro del script no puede ir el signo «menor que»: st.html
+# descarta todo el bloque si lo encuentra, por eso las comparaciones se escriben al revés (b > a).
 BUSCADOR_JS = """<script>
 if (!window.__buscadorListas) {
   window.__buscadorListas = true;
   const norm = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const entrada = e => e.target.closest && e.target.closest(".buscador input");
-  // Resalta con <mark> las palabras escritas dentro del texto original (con acentos y mayúsculas intactos)
+  // Resalta con «mark» las palabras escritas dentro del texto original (con acentos y mayúsculas intactos)
   const marcar = (el, texto, palabras) => {
     let base = "";
     const pos = [], si = new Array(texto.length).fill(false);
-    for (let i = 0; i < texto.length; i++) {
+    for (let i = 0; texto.length > i; i++) {
       const c = texto[i].normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
       base += c;
-      for (let k = 0; k < c.length; k++) pos.push(i);
+      for (let k = 0; c.length > k; k++) pos.push(i);
     }
     palabras.forEach(p => {
       for (let j = base.indexOf(p); j >= 0; j = base.indexOf(p, j + 1))
-        for (let k = j; k < j + p.length; k++) si[pos[k]] = true;
+        for (let k = j; j + p.length > k; k++) si[pos[k]] = true;
     });
     el.textContent = "";
-    for (let i = 0; i < texto.length;) {
+    for (let i = 0; texto.length > i;) {
       let j = i;
-      while (j < texto.length && si[j] === si[i]) j++;
+      while (texto.length > j && si[j] === si[i]) j++;
       const trozo = document.createTextNode(texto.slice(i, j));
       if (si[i]) { const m = document.createElement("mark"); m.appendChild(trozo); el.appendChild(m); }
       else el.appendChild(trozo);
@@ -837,9 +845,10 @@ if (!window.__buscadorListas) {
     };
     lista.querySelectorAll("li").forEach(li => {
       if (li.classList.contains("grupo")) { cerrar(); cab = li; vistos = hallados = 0; return; }
+      if (!li.classList.contains("op")) return;
       li.classList.remove("activa");
       const v = norm(li.dataset.v), ok = !q || (v !== q && palabras.every(p => v.includes(p)));
-      const ver = ok && vistos < tope;
+      const ver = ok && tope > vistos;
       hallados += ok;
       vistos += ver;
       total += ver;
@@ -874,7 +883,7 @@ if (!window.__buscadorListas) {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       if (i >= 0) vis[i].classList.remove("activa");
-      i = (i + (e.key === "ArrowDown" ? 1 : vis.length - 1 + (i < 0 ? 1 : 0))) % vis.length;
+      i = (i + (e.key === "ArrowDown" ? 1 : vis.length - 1 + (0 > i ? 1 : 0))) % vis.length;
       vis[i].classList.add("activa");
       vis[i].scrollIntoView({block: "nearest"});
     } else if (e.key === "Enter" && i >= 0) {
@@ -930,6 +939,11 @@ ICONO_GRUPO = {"Proveedor": "proveedor", "Marca": "marca", "Producto": "producto
                "Región": "regional", "Inventario": "pastel"}
 
 
+# Pie de la lista de sugerencias: cómo moverse con el teclado
+PIE_SUGERENCIAS = ('<li class="pie-sug"><span><kbd>↑</kbd><kbd>↓</kbd> moverse</span><span><kbd>Enter</kbd> elegir'
+                   '</span><span><kbd>Esc</kbd> cerrar</span></li>')
+
+
 def buscador(texto, sugerencias=None):
     """sugerencias: {sección: Serie valor → artículos}; se despliegan por sección al enfocar el buscador y al elegir
     una opción se filtra con ella."""
@@ -940,7 +954,7 @@ def buscador(texto, sugerencias=None):
         for g, valores in (sugerencias or {}).items() if len(valores))
     return (f'<label class="buscador">{svg("buscar", 16)}<input type="search" placeholder="{escape(texto)}"'
             f' autocomplete="off"><span class="cuenta"></span>'
-            f'{f"<ul class=sugerencias hidden>{lista}</ul>" if lista else ""}</label>')
+            f'{f"<ul class=sugerencias hidden>{lista}{PIE_SUGERENCIAS}</ul>" if lista else ""}</label>')
 
 
 def guia(texto):
