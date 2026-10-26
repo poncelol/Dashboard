@@ -798,11 +798,15 @@ def porcentaje(parte, total):
 # Filtra los renglones de un listado o tabla mientras se escribe (sin acentos ni mayúsculas). st.markdown no
 # ejecuta JavaScript y st.html quita los <svg>: el contenido va con st.markdown y solo el script con st.html.
 # El script escucha en todo el documento, así que sirve para cualquier elemento .buscable (listados del banner y
-# tablas), y se registra una sola vez por página. Dentro del script no puede ir el signo «menor que»: st.html
+# tablas), y cada ejecución reemplaza a la anterior. Dentro del script no puede ir el signo «menor que»: st.html
 # descarta todo el bloque si lo encuentra, por eso las comparaciones se escriben al revés (b > a).
 BUSCADOR_JS = """<script>
-if (!window.__buscadorListas) {
-  window.__buscadorListas = true;
+{
+  // Cada vez que corre, quita los escuchas de la versión anterior y pone los suyos: así una pestaña ya abierta
+  // usa el código nuevo sin tener que recargar la página
+  (window.__buscadorEscuchas || []).forEach(([tipo, f]) => document.removeEventListener(tipo, f));
+  window.__buscadorEscuchas = [];
+  const escuchar = (tipo, f) => { document.addEventListener(tipo, f); window.__buscadorEscuchas.push([tipo, f]); };
   const norm = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const entrada = e => e.target.closest && e.target.closest(".buscador input");
   // Resalta con «mark» las palabras escritas dentro del texto original (con acentos y mayúsculas intactos)
@@ -863,19 +867,19 @@ if (!window.__buscadorListas) {
     caja.dispatchEvent(new Event("input", {bubbles: true}));
     caja.parentElement.querySelector(".sugerencias").hidden = true;
   };
-  document.addEventListener("focusin", e => { const caja = entrada(e); if (caja) sugerir(caja); });
-  document.addEventListener("focusout", e => {
+  escuchar("focusin", e => { const caja = entrada(e); if (caja) sugerir(caja); });
+  escuchar("focusout", e => {
     const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
     if (lista) lista.hidden = true;
   });
   // mousedown y no click: as\u00ed el campo no pierde el foco antes de elegir
-  document.addEventListener("mousedown", e => {
+  escuchar("mousedown", e => {
     const li = e.target.closest && e.target.closest(".sugerencias li");
     if (!li) return;
     e.preventDefault();
     if (li.classList.contains("op")) elegir(li.closest(".buscador").querySelector("input"), li);
   });
-  document.addEventListener("keydown", e => {
+  escuchar("keydown", e => {
     const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
     if (!lista || lista.hidden) return;
     const vis = Array.from(lista.querySelectorAll("li.op:not([hidden])"));
@@ -893,7 +897,7 @@ if (!window.__buscadorListas) {
       lista.hidden = true;
     }
   });
-  document.addEventListener("input", e => {
+  escuchar("input", e => {
     const caja = entrada(e);
     if (!caja) return;
     if (e.isTrusted) sugerir(caja);
