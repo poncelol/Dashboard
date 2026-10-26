@@ -464,7 +464,7 @@ details.kpi-det .s { font-size: 1.05rem; }
 .buscador { position: relative; }
 .buscador .sugerencias { position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 20; list-style: none;
   margin: 0; padding: 6px; max-height: 340px; overflow-y: auto; background: var(--card); border: 1px solid var(--borde);
-  border-radius: 10px; box-shadow: 0 12px 32px rgb(0 0 0 / .16); }
+  border-radius: 10px; box-shadow: 0 12px 32px rgb(0 0 0 / .16); outline: none; }
 .buscador .sugerencias::-webkit-scrollbar { width: 6px; }
 .buscador .sugerencias::-webkit-scrollbar-thumb { background: var(--borde); border-radius: 999px; }
 .buscador .sugerencias li { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px; border-radius: 6px;
@@ -889,16 +889,27 @@ BUSCADOR_JS = """<script>
   };
   escuchar("focusin", e => {
     const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
-    if (!lista) return;
+    // Si el foco regresa desde la propia lista (tras usar su barra), se queda como estaba
+    if (!lista || e.relatedTarget === lista) return;
     lista.__extra = {};
     sugerir(caja);
   });
+  // Se cierra solo si el foco sale del buscador (campo o lista); pasar del campo a la lista no la cierra
   escuchar("focusout", e => {
-    const caja = entrada(e), lista = caja && caja.parentElement.querySelector(".sugerencias");
-    if (lista) lista.hidden = true;
+    const caja_b = e.target.closest && e.target.closest(".buscador"), lista = caja_b && caja_b.querySelector(".sugerencias");
+    if (!lista || (e.relatedTarget && caja_b.contains(e.relatedTarget))) return;
+    lista.hidden = true;
+  });
+  // Al soltar la barra de desplazamiento, el foco vuelve al campo para seguir escribiendo o usar las flechas
+  escuchar("mouseup", e => {
+    const lista = e.target.closest && e.target.closest(".sugerencias");
+    if (lista && document.activeElement === lista)
+      lista.closest(".buscador").querySelector("input").focus({preventScroll: true});
   });
   // mousedown y no click: as\u00ed el campo no pierde el foco antes de elegir
   escuchar("mousedown", e => {
+    // En la barra de desplazamiento no se cancela el clic, para que se pueda arrastrar: la lista (tabindex=-1)
+    // recibe el foco y focusout no la cierra
     const li = e.target.closest && e.target.closest(".sugerencias li");
     if (!li) return;
     e.preventDefault();
@@ -996,7 +1007,7 @@ def buscador(texto, sugerencias=None):
         for g, valores in (sugerencias or {}).items() if len(valores))
     return (f'<label class="buscador">{svg("buscar", 16)}<input type="search" placeholder="{escape(texto)}"'
             f' autocomplete="off"><span class="cuenta"></span>'
-            f'{f"<ul class=sugerencias hidden>{lista}{PIE_SUGERENCIAS}</ul>" if lista else ""}</label>')
+            f'{f"<ul class=sugerencias tabindex=-1 hidden>{lista}{PIE_SUGERENCIAS}</ul>" if lista else ""}</label>')
 
 
 def guia(texto):
