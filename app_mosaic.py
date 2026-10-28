@@ -656,14 +656,24 @@ div[class*="st-key-card_"] { padding: 0 20px 16px 20px !important; gap: .5rem; }
 .ver-art summary:hover, .ver-art[open] summary { border-color: var(--acento); background: rgb(var(--acento-rgb) / .08); }
 .ver-art .flecha svg { transition: transform .15s; }
 .ver-art[open] .flecha svg { transform: rotate(180deg); }
-.ver-art .panel { min-width: 340px; max-height: 320px; overflow-y: auto; margin-top: 8px; padding-right: 4px; }
-.ver-art .hoja { font-size: .74rem; color: var(--tenue); text-transform: uppercase; font-weight: 600; margin: 8px 0 2px;
-  padding-bottom: 2px; border-bottom: 1px solid var(--linea); }
-.ver-art .hoja:first-child { margin-top: 0; }
-.ver-art .hoja b { color: var(--texto); }
-.ver-art ul { list-style: none; margin: 0; padding: 0; }
-.ver-art li { font-size: .8rem; color: var(--texto2); padding: 3px 0; }
-.ver-art li b { color: var(--texto); font-weight: 600; margin-right: 4px; }
+/* Renglón bajo el proveedor (todo el ancho de la tabla): aparece solo con «Ver artículos» abierto */
+.tabla tr.art-fila { display: none; }
+.tabla tr:not([hidden]):has(.ver-art[open]) + tr.art-fila { display: table-row; }
+.tabla tr:has(.ver-art[open]) td { border-bottom: none; }
+.tabla tr.art-fila > td { padding: 0 8px 14px; }
+.art-panel { max-height: 440px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+/* Cada hoja de negociación con su color (--h): encabezado con punto y artículos con borde de ese color */
+.hoja-bloque { border: 1px solid var(--borde); border-left: 4px solid var(--h); border-radius: 8px;
+  background: var(--hf); padding: 8px 10px; }
+.hoja-bloque .hoja { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--texto2);
+  font-weight: 600; margin-bottom: 6px; }
+.hoja-bloque .hoja i { width: 9px; height: 9px; border-radius: 50%; background: var(--h); }
+.hoja-bloque .hoja b { color: var(--texto); font-weight: 700; }
+.hoja-bloque ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.hoja-bloque li { font-size: .8rem; color: var(--texto2); background: var(--card); border-left: 3px solid var(--h);
+  border-radius: 4px; padding: 5px 8px; }
+.hoja-bloque li b { color: var(--texto); font-weight: 600; margin-right: 4px; }
 
 /* Guía de lectura */
 .guia { display: flex; gap: 10px; align-items: flex-start; background: rgb(188 149 92 / .12);
@@ -993,7 +1003,7 @@ BUSCADOR_JS = """<script>
     if (e.isTrusted) sugerir(caja);
     const caja_b = caja.closest(".buscable"), q = norm(caja.value), palabras = q.split(/\\s+/).filter(Boolean);
     let n = 0;
-    caja_b.querySelectorAll(".nombres li:not(.vacio), tbody tr:not(.vacio)").forEach(r => {
+    caja_b.querySelectorAll(".nombres li:not(.vacio), tbody tr:not(.vacio):not(.art-fila)").forEach(r => {
       // Texto de cada celda separado por espacios, más el texto oculto data-busca (claves, regiones, razón social);
       // cada palabra escrita debe aparecer en algún lado del renglón, en cualquier orden
       const celdas = r.cells ? Array.from(r.cells).filter(c => !c.classList.contains("no-busca"))
@@ -1059,11 +1069,14 @@ def guia(texto):
     md(f'<div class="guia">{svg("idea", 16)}<span>{texto}</span></div>')
 
 
-def tabla(encabezados, filas, numericas=(), alto=None, buscar=None, busca_extra=None, sugerencias=None, sin_busca=()):
+def tabla(encabezados, filas, numericas=(), alto=None, buscar=None, busca_extra=None, sugerencias=None, sin_busca=(),
+          detalles=None):
     """buscar: texto de ayuda del buscador que filtra los renglones de la tabla (sin él, no hay buscador).
     busca_extra: por renglón, texto que no se ve pero también se busca (claves, regiones, razón social…).
     sugerencias: {grupo: valores} que se ofrecen en el buscador (ver buscador()).
-    sin_busca: columnas cuyo texto no se busca (p. ej. una lista desplegable dentro de la celda)."""
+    sin_busca: columnas cuyo texto no se busca (p. ej. el botón «Ver artículos»).
+    detalles: por renglón, HTML de un renglón extra debajo, a todo el ancho, que se ve solo mientras el
+    <details class="ver-art"> de su renglón está abierto (ni se busca ni se cuenta)."""
     th = "".join(f'<th class="{"num" if i in numericas else ""}">{h}</th>' for i, h in enumerate(encabezados))
     extra = busca_extra or [""] * len(filas)
     tr = "".join(
@@ -1071,7 +1084,8 @@ def tabla(encabezados, filas, numericas=(), alto=None, buscar=None, busca_extra=
             f'<td class="{"num" if i in numericas else ""} {"fuerte" if i == 0 else ""}'
             f'{" no-busca" if i in sin_busca else ""}">{c}</td>'
             for i, c in enumerate(fila)) + "</tr>"
-        for fila, x in zip(filas, extra))
+        + (f'<tr class="art-fila"><td colspan="{len(encabezados)}">{det}</td></tr>' if det else "")
+        for fila, x, det in zip(filas, extra, detalles or [""] * len(filas)))
     if buscar:
         tr += f'<tr class="vacio" hidden><td colspan="{len(encabezados)}">Sin coincidencias.</td></tr>'
     marco = f' scroll" style="max-height:{alto}px' if alto else ""
@@ -1572,25 +1586,29 @@ with st.container():
         razon = datos.groupby("CVE")["PROVEEDOR"].first()
         regs_prov = datos.groupby("CVE")["REGIONES"].agg(lambda s: [x for t in s for x in t])
         # Artículos de cada proveedor agrupados por hoja de negociación, para el botón «Ver artículos»
+        # Cada hoja de un proveedor toma el siguiente color de la paleta, así dos hojas seguidas nunca se confunden
         por_hoja = {}
         for (cve, hoja), g in (datos.drop_duplicates(["CVE", "HOJA", "ART_ID"])
                                .sort_values(["HOJA", "ARTICULO"]).groupby(["CVE", "HOJA"], dropna=False)):
             items = "".join(f'<li><b>{escape(str(a.ART_ID))}</b>{escape(a.ARTICULO)}'
                             f'<small>{escape(a.MARCA)} · {escape(a.PRESENTACION)} · {escape(a.INVENTARIO)}</small></li>'
                             for a in g.itertuples())
-            por_hoja[cve] = por_hoja.get(cve, "") + (
-                f'<div class="hoja">Hoja <b>{escape(str(hoja)) if pd.notna(hoja) else "sin número"}</b> · '
-                f'{len(g):,} {"artículo" if len(g) == 1 else "artículos"}</div><ul>{items}</ul>')
-        filas, ocultos = [], []
+            bloques = por_hoja.setdefault(cve, [])
+            color = T["paleta"][len(bloques) % len(T["paleta"])]
+            bloques.append(
+                f'<div class="hoja-bloque" style="--h:{color};--hf:{alfa(color, .06)}"><div class="hoja"><i></i>'
+                f'Hoja <b>{escape(str(hoja)) if pd.notna(hoja) else "sin número"}</b> · '
+                f'{len(g):,} {"artículo" if len(g) == 1 else "artículos"}</div><ul>{items}</ul></div>')
+        filas, ocultos, detalles = [], [], []
         for cve, r in resumen.iterrows():
             fichas = "".join(chip(t, COLOR_INV.get(t, T["texto3"]), int(n))
                              for t, n in tipos[cve].sort_values(ascending=False).items())
             ver = (f'<details class="ver-art"><summary>Ver artículos ({r.art:,})'
-                   f'<span class="flecha">{svg("flecha", 14)}</span></summary>'
-                   f'<div class="panel">{por_hoja.get(cve, "")}</div></details>')
+                   f'<span class="flecha">{svg("flecha", 14)}</span></summary></details>')
             filas.append([escape(r.prov), fichas, cobertura[cve], ver])
+            detalles.append(f'<div class="art-panel">{"".join(por_hoja.get(cve, []))}</div>')
             ocultos.append(f"{cve} {razon.get(cve, '')} {busca_regiones(regs_prov[cve])}")
-        tabla(["Proveedor", "Tipos de inventario", "Cobertura", "Artículos"], filas, alto=520, sin_busca=(3,),
+        tabla(["Proveedor", "Tipos de inventario", "Cobertura", "Artículos"], filas, alto=520, sin_busca=(3,), detalles=detalles,
               buscar="Buscar proveedor, tipo de inventario o región…", busca_extra=ocultos,
               sugerencias=sugerencias_de(datos, {"Proveedor": "PROV_CORTO", "Inventario": "INVENTARIO",
                                                  "Región": "REGIONES"}))
