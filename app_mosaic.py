@@ -661,7 +661,8 @@ div[class*="st-key-card_"] { padding: 0 20px 16px 20px !important; gap: .5rem; }
 .tabla tr:not([hidden]):has(.ver-art[open]) + tr.art-fila { display: table-row; }
 .tabla tr:has(.ver-art[open]) td { border-bottom: none; }
 .tabla tr.art-fila > td { padding: 0 8px 14px; }
-.art-panel { max-height: 440px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+/* Sin desplazamiento propio: todo se recorre con la barra de la tabla */
+.art-panel { display: flex; flex-direction: column; gap: 10px; }
 /* Cada hoja de negociación con su color (--h): encabezado con punto y artículos con borde de ese color */
 .hoja-bloque { border: 1px solid var(--borde); border-left: 4px solid var(--h); border-radius: 8px;
   background: var(--hf); padding: 8px 10px; }
