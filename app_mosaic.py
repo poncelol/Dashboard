@@ -31,6 +31,7 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 
+import openpyxl
 import pandas as pd
 import plotly.graph_objects as go
 import requests
@@ -243,6 +244,30 @@ def presentacion(cap, gram, um) -> str:
     return f"{cap:g} × {gram:g} {um}".strip()
 
 
+FORMATO_HOJA = re.compile(r'^"([^"]*)"(0+)"([^"]*)"$')   # "GA"00000"/26": prefijo, ceros y sufijo
+
+
+def etiquetas_hoja(contenido: bytes, hoja: str, n: int) -> list:
+    """La hoja de negociación se guarda como número (1099) y el Excel la muestra con el formato de su celda
+    ("GA"00000"/26" -> GA01099/26); así se distingue GA de GG. Devuelve la etiqueta de cada renglón de datos,
+    en el mismo orden que pandas, o None donde el formato no es de ese tipo."""
+    ws = openpyxl.load_workbook(io.BytesIO(contenido), read_only=True)[hoja]
+    filas = ws.iter_rows()
+    for fila in filas:   # renglón de encabezados: el primero con la columna NEGOCIACION
+        col = next((i for i, c in enumerate(fila) if str(c.value).strip().upper() == "NEGOCIACION"), None)
+        if col is not None:
+            break
+    else:
+        return [None] * n
+    salida = []
+    for fila in filas:
+        c = fila[col] if col < len(fila) else None
+        m = FORMATO_HOJA.match(getattr(c, "number_format", None) or "")
+        valor = getattr(c, "value", None)
+        salida.append(f"{m[1]}{int(valor):0{len(m[2])}d}{m[3]}" if m and isinstance(valor, (int, float)) else None)
+    return (salida + [None] * n)[:n]
+
+
 @st.cache_data(show_spinner="Preparando el tablero…")
 def cargar(contenido: bytes) -> pd.DataFrame:
     xls = pd.ExcelFile(io.BytesIO(contenido))
@@ -254,6 +279,7 @@ def cargar(contenido: bytes) -> pd.DataFrame:
     if fila is None:
         raise ValueError(f"no encontré la fila de encabezados en la hoja {hoja}")
     raw = pd.read_excel(xls, sheet_name=hoja, header=fila)
+    raw["HOJA"] = etiquetas_hoja(contenido, hoja, len(raw))
     raw.columns = [re.sub(r"\s+", " ", str(c)).strip() for c in raw.columns]
     raw = raw.rename(columns=RENOMBRAR)
     raw = raw.loc[:, ~raw.columns.str.startswith("Unnamed")]
@@ -271,6 +297,7 @@ def cargar(contenido: bytes) -> pd.DataFrame:
         df[c] = pd.to_numeric(df[c], errors="coerce")
     for c in ["NEGOCIACION", "CVE", "PROD", "ART_ID", "CODIGO_BARRAS"]:
         df[c] = clave_texto(df[c])
+    df["HOJA"] = df["HOJA"].fillna(df["NEGOCIACION"])   # sin formato GA/GG, queda el número tal cual
 
     for c in ["PROVEEDOR", "PRODUCTO", "ARTICULO", "MARCA", "UM", "IMPUESTO"]:
         df[c] = df[c].astype(str).str.strip().str.upper().replace({"NAN": pd.NA, "": pd.NA})
@@ -621,6 +648,23 @@ div[class*="st-key-card_"] { padding: 0 20px 16px 20px !important; gap: .5rem; }
 .chip b { color: var(--texto); font-weight: 600; }
 .chip.sel { border-color: var(--acento); background: rgb(var(--acento-rgb) / .08); }
 
+/* Botón «Ver artículos» de cada proveedor: se despliega su lista por hoja de negociación */
+.ver-art summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-size: .76rem; font-weight: 600; color: var(--acento); border: 1px solid var(--borde); border-radius: 8px;
+  padding: 3px 10px; white-space: nowrap; }
+.ver-art summary::-webkit-details-marker { display: none; }
+.ver-art summary:hover, .ver-art[open] summary { border-color: var(--acento); background: rgb(var(--acento-rgb) / .08); }
+.ver-art .flecha svg { transition: transform .15s; }
+.ver-art[open] .flecha svg { transform: rotate(180deg); }
+.ver-art .panel { min-width: 340px; max-height: 320px; overflow-y: auto; margin-top: 8px; padding-right: 4px; }
+.ver-art .hoja { font-size: .74rem; color: var(--tenue); text-transform: uppercase; font-weight: 600; margin: 8px 0 2px;
+  padding-bottom: 2px; border-bottom: 1px solid var(--linea); }
+.ver-art .hoja:first-child { margin-top: 0; }
+.ver-art .hoja b { color: var(--texto); }
+.ver-art ul { list-style: none; margin: 0; padding: 0; }
+.ver-art li { font-size: .8rem; color: var(--texto2); padding: 3px 0; }
+.ver-art li b { color: var(--texto); font-weight: 600; margin-right: 4px; }
+
 /* Guía de lectura */
 .guia { display: flex; gap: 10px; align-items: flex-start; background: rgb(188 149 92 / .12);
   border-radius: 8px; padding: 10px 14px; font-size: .82rem; color: var(--texto2); margin: 0 0 6px 0; }
@@ -952,7 +996,8 @@ BUSCADOR_JS = """<script>
     caja_b.querySelectorAll(".nombres li:not(.vacio), tbody tr:not(.vacio)").forEach(r => {
       // Texto de cada celda separado por espacios, más el texto oculto data-busca (claves, regiones, razón social);
       // cada palabra escrita debe aparecer en algún lado del renglón, en cualquier orden
-      const celdas = r.cells ? Array.from(r.cells, c => c.textContent).join(" ") : r.textContent;
+      const celdas = r.cells ? Array.from(r.cells).filter(c => !c.classList.contains("no-busca"))
+                                    .map(c => c.textContent).join(" ") : r.textContent;
       const texto = norm(celdas + " " + (r.dataset.busca || ""));
       const ok = palabras.every(p => texto.includes(p));
       r.hidden = !ok;
@@ -1014,15 +1059,17 @@ def guia(texto):
     md(f'<div class="guia">{svg("idea", 16)}<span>{texto}</span></div>')
 
 
-def tabla(encabezados, filas, numericas=(), alto=None, buscar=None, busca_extra=None, sugerencias=None):
+def tabla(encabezados, filas, numericas=(), alto=None, buscar=None, busca_extra=None, sugerencias=None, sin_busca=()):
     """buscar: texto de ayuda del buscador que filtra los renglones de la tabla (sin él, no hay buscador).
     busca_extra: por renglón, texto que no se ve pero también se busca (claves, regiones, razón social…).
-    sugerencias: {grupo: valores} que se ofrecen en el buscador (ver buscador())."""
+    sugerencias: {grupo: valores} que se ofrecen en el buscador (ver buscador()).
+    sin_busca: columnas cuyo texto no se busca (p. ej. una lista desplegable dentro de la celda)."""
     th = "".join(f'<th class="{"num" if i in numericas else ""}">{h}</th>' for i, h in enumerate(encabezados))
     extra = busca_extra or [""] * len(filas)
     tr = "".join(
         (f'<tr data-busca="{escape(x)}">' if x else "<tr>") + "".join(
-            f'<td class="{"num" if i in numericas else ""} {"fuerte" if i == 0 else ""}">{c}</td>'
+            f'<td class="{"num" if i in numericas else ""} {"fuerte" if i == 0 else ""}'
+            f'{" no-busca" if i in sin_busca else ""}">{c}</td>'
             for i, c in enumerate(fila)) + "</tr>"
         for fila, x in zip(filas, extra))
     if buscar:
@@ -1286,7 +1333,7 @@ def busca_regiones(siglas) -> str:
 
 def busca_articulo(r) -> str:
     """Texto oculto de un renglón de artículos: claves, razón social, código de barras y regiones."""
-    return " ".join(str(x) for x in [r.PROD, r.PRODUCTO, r.CVE, r.PROVEEDOR, r.CODIGO_BARRAS, r.NEGOCIACION,
+    return " ".join(str(x) for x in [r.PROD, r.PRODUCTO, r.CVE, r.PROVEEDOR, r.CODIGO_BARRAS, r.NEGOCIACION, r.HOJA,
                                       r.ALCANCE, busca_regiones(r.REGIONES)] if pd.notna(x))
 
 
@@ -1426,7 +1473,7 @@ def barra_seleccion(clave, partes, limpiar):
 # ──────────────────────────────────────────────────────────────
 with st.container(key="hero", horizontal=True, vertical_alignment="top", gap="medium"):
     md(f'<div class="hero"><div class="marca">{LOGO}<span class="sep"></span>'
-       f'<div class="gob">GOBIERNO DE <b>MÉXICO</b><span class="dep">Alimentación para el Bienestar</span></div></div>'
+       f'<div class="gob"><b>Alimentación para el Bienestar</b><span class="dep">Dirección Comercial</span></div></div>'
        f'<div class="eyebrow">Programa de Abasto Rural 2026</div><h1>Subgerencia de Abarrotes</h1>'
        f'<p>Resumen del catálogo de artículos vigentes · proveedores, productos, marcas y unidades operativas</p>'
        f'<div class="fecha">Información al {fecha_larga(hoy)} · {origen}</div></div>')
@@ -1495,7 +1542,7 @@ seccion("hojas", "Arriba las hojas PAR y abajo las de Oferta, cada una por cober
 for inv, icono_inv in [("PAR", "articulo"), ("Oferta", "estrella")]:
     banner([(f"Hojas {inv} · Cobertura {alc.lower()}", icono, d["NEGOCIACION"].nunique(),
              f"<b>{n_art(d):,}</b> artículos · <b>{d['CVE'].nunique():,}</b> proveedores",
-             (d["NEGOCIACION"].astype(str) + " · " + d["PROV_CORTO"].astype(str)).drop_duplicates(), color)
+             (d["HOJA"].astype(str) + " · " + d["PROV_CORTO"].astype(str)).drop_duplicates(), color)
             for alc, icono, color in [("Nacional", "nacional", P7420 if inv == "PAR" else P626),
                                       ("Regional", "regional", P7421 if inv == "PAR" else P1255)]
             for d in [datos[(datos["ALCANCE"] == alc) & (datos["INVENTARIO"] == inv)]]], clase="dos")
@@ -1518,18 +1565,32 @@ with st.container():
                .sort_values(["art", "prov"], ascending=[False, True]))
     tipos = datos.groupby(["CVE", "INVENTARIO"])["ART_ID"].nunique()
     cobertura = datos.groupby("CVE")[["ALCANCE", "REGIONES"]].apply(texto_cobertura)
-    with tarjeta("Proveedores · todos", "c_prov",
-                 "Cada proveedor con sus tipos de inventario y si su cobertura es nacional o regional.",
+    with tarjeta("Proveedores", "c_prov",
+                 "Cada proveedor con sus tipos de inventario y si su cobertura es nacional o regional · "
+                 "en «Ver artículos» están sus artículos por hoja de negociación.",
                  extra=f"{len(resumen):,} proveedores"):
         razon = datos.groupby("CVE")["PROVEEDOR"].first()
         regs_prov = datos.groupby("CVE")["REGIONES"].agg(lambda s: [x for t in s for x in t])
+        # Artículos de cada proveedor agrupados por hoja de negociación, para el botón «Ver artículos»
+        por_hoja = {}
+        for (cve, hoja), g in (datos.drop_duplicates(["CVE", "HOJA", "ART_ID"])
+                               .sort_values(["HOJA", "ARTICULO"]).groupby(["CVE", "HOJA"], dropna=False)):
+            items = "".join(f'<li><b>{escape(str(a.ART_ID))}</b>{escape(a.ARTICULO)}'
+                            f'<small>{escape(a.MARCA)} · {escape(a.PRESENTACION)} · {escape(a.INVENTARIO)}</small></li>'
+                            for a in g.itertuples())
+            por_hoja[cve] = por_hoja.get(cve, "") + (
+                f'<div class="hoja">Hoja <b>{escape(str(hoja)) if pd.notna(hoja) else "sin número"}</b> · '
+                f'{len(g):,} {"artículo" if len(g) == 1 else "artículos"}</div><ul>{items}</ul>')
         filas, ocultos = [], []
         for cve, r in resumen.iterrows():
             fichas = "".join(chip(t, COLOR_INV.get(t, T["texto3"]), int(n))
                              for t, n in tipos[cve].sort_values(ascending=False).items())
-            filas.append([escape(r.prov), fichas, cobertura[cve]])
+            ver = (f'<details class="ver-art"><summary>Ver artículos ({r.art:,})'
+                   f'<span class="flecha">{svg("flecha", 14)}</span></summary>'
+                   f'<div class="panel">{por_hoja.get(cve, "")}</div></details>')
+            filas.append([escape(r.prov), fichas, cobertura[cve], ver])
             ocultos.append(f"{cve} {razon.get(cve, '')} {busca_regiones(regs_prov[cve])}")
-        tabla(["Proveedor", "Tipos de inventario", "Cobertura"], filas, alto=520,
+        tabla(["Proveedor", "Tipos de inventario", "Cobertura", "Artículos"], filas, alto=520, sin_busca=(3,),
               buscar="Buscar proveedor, tipo de inventario o región…", busca_extra=ocultos,
               sugerencias=sugerencias_de(datos, {"Proveedor": "PROV_CORTO", "Inventario": "INVENTARIO",
                                                  "Región": "REGIONES"}))
@@ -1676,4 +1737,4 @@ with tarjeta(f"Artículos {tipo_art} · {nombre_reg}" + (f" · {sel_up}" if sel_
           sugerencias=sugerencias_de(da_reg, {"Producto": "PRODUCTO", "Marca": "MARCA", "Proveedor": "PROV_CORTO",
                                               "Inventario": "INVENTARIO", "Artículo": "ARTICULO"}))
 
-md('<div class="pie">Subgerencia de Abarrotes · Alimentación para el Bienestar · Gobierno de México</div>')
+md('<div class="pie">Subgerencia de Abarrotes · Dirección Comercial · Alimentación para el Bienestar</div>')
