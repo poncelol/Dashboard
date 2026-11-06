@@ -675,6 +675,9 @@ div[class*="st-key-card_"] { padding: 0 20px 16px 20px !important; gap: .5rem; }
 .hoja-bloque li { font-size: .8rem; color: var(--texto2); background: var(--card); border-left: 3px solid var(--h);
   border-radius: 4px; padding: 5px 8px; }
 .hoja-bloque li b { color: var(--texto); font-weight: 600; margin-right: 4px; }
+/* Costo de adquisición de cada artículo, resaltado con el color de su hoja */
+.hoja-bloque li .costo { display: inline-block; font-weight: 700; color: var(--texto); background: var(--hf);
+  border: 1px solid var(--h); border-radius: 4px; padding: 0 6px; margin-right: 6px; font-variant-numeric: tabular-nums; }
 
 /* Guía de lectura */
 .guia { display: flex; gap: 10px; align-items: flex-start; background: rgb(188 149 92 / .12);
@@ -1591,7 +1594,7 @@ with st.container():
         por_hoja = {}
         for (cve, hoja), g in (datos.drop_duplicates(["CVE", "HOJA", "ART_ID"])
                                .sort_values(["HOJA", "ARTICULO"]).groupby(["CVE", "HOJA"], dropna=False)):
-            items = "".join(f'<li><b>{escape(str(a.ART_ID))}</b>{escape(a.ARTICULO)}'
+            items = "".join(f'<li><span class="costo">{dinero(a.COSTO_CAJA)}</span>{escape(a.ARTICULO)}'
                             f'<small>{escape(a.MARCA)} · {escape(a.PRESENTACION)} · {escape(a.INVENTARIO)}</small></li>'
                             for a in g.itertuples())
             bloques = por_hoja.setdefault(cve, [])
@@ -1617,27 +1620,15 @@ with st.container():
 # ──────────────────────────────────────────────────────────────
 # PRODUCTOS Y ARTÍCULOS: el tipo de inventario elegido filtra los productos y sus artículos
 # ──────────────────────────────────────────────────────────────
-seccion("productos", "<b>①</b> Si quieres, haz clic en un tipo de inventario · <b>②</b> elige un producto haciendo "
-        "clic en su barra o búscalo por nombre · abajo aparecen sus artículos.")
+seccion("productos", "Si quieres, haz clic en un tipo de inventario para filtrar los artículos · en el listado "
+        "busca por artículo, producto, marca o proveedor.")
 inv_n = conteo(datos, "INVENTARIO")
 sel_inv = st.session_state.get("sel_inv")
 sel_inv = sel_inv if sel_inv in inv_n.index else None
-d_inv = datos[datos["INVENTARIO"] == sel_inv] if sel_inv else datos
-prods_inv = (d_inv.groupby("PROD").agg(nombre=("PRODUCTO", "first"), art=("ART_ID", "nunique"))
-             .sort_values(["art", "nombre"], ascending=[False, True]))
-if st.session_state.get("sel_prod") not in prods_inv.index:
-    st.session_state["sel_prod"] = prods_inv.index[0]
-sel_prod = st.session_state["sel_prod"]
-nombre_prod = prods_inv.at[sel_prod, "nombre"]
-dp = d_inv[d_inv["PROD"] == sel_prod]
-with st.container(key="buscar_prod"):
-    md(f'<span class="lupa">{svg("buscar", 16)}</span>')
-    st.selectbox("Buscar producto", list(prods_inv.index), key="sel_prod", label_visibility="collapsed",
-                 format_func=lambda k: f"{prods_inv.at[k, 'nombre']}  ·  {prods_inv.at[k, 'art']:,} artículos")
-st.write("")
+da = datos[datos["INVENTARIO"] == sel_inv] if sel_inv else datos
 
 with st.container(key="fila_prod"):
-    i, a = st.columns([2, 3], gap="medium")
+    i, a = st.columns([2, 5], gap="medium")
 with i:
     prov_inv = datos.groupby("INVENTARIO")["CVE"].nunique()
     neg_inv = datos.groupby("INVENTARIO")["NEGOCIACION"].nunique()
@@ -1649,30 +1640,24 @@ with i:
                   ovalo={k: f"{neg_inv.get(k, 0):,} {'hoja' if neg_inv.get(k, 0) == 1 else 'hojas'} neg."
                          for k in inv_n.index})
 with a:
-    with tarjeta("Todos los productos" + (f" · {sel_inv}" if sel_inv else ""), "pd_barras",
-                 "Artículos distintos por producto, de mayor a menor.", extra=f"{len(prods_inv)} productos"):
-        barras_clic(prods_inv["art"], f"pd_barras_g_{sel_inv or 'todos'}", "sel_prod",
-                    etiquetas=list(prods_inv["nombre"]), vaciable=False, alto_max=470, n_corto=24)
-da = dp
-titulo_art = nombre_prod + (f" · {sel_inv}" if sel_inv else "")
+    # Listado independiente de los productos: solo lo filtra el tipo de inventario; se busca como en Proveedores
+    with tarjeta("Artículos" + (f" · {sel_inv}" if sel_inv else ""), "pd_tabla",
+                 "Producto, presentación, inventario, cobertura y costo de cada artículo.",
+                 extra=[f"{n_art(da):,} artículos", f"{da['PROD'].nunique():,} productos"]):
+        renglones = list(da.sort_values(["PRODUCTO", "ARTICULO", "ART_ID"]).itertuples())
+        filas = [[f"{escape(r.ARTICULO)}<small>ART. {escape(r.ART_ID)}</small>", escape(r.PRODUCTO), escape(r.MARCA),
+                  escape(r.PRESENTACION), escape(r.PROV_CORTO),
+                  chip(r.INVENTARIO, COLOR_INV.get(r.INVENTARIO, T["texto3"])),
+                  "Nacional" if r.ALCANCE == "Nacional" else escape(r.COBERTURA), dinero(r.COSTO_UNIT)]
+                 for r in renglones]
+        tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Cobertura", "Costo unitario"],
+              filas, numericas=(7,), alto=470, buscar="Buscar artículo, clave, producto, marca, proveedor…",
+              busca_extra=[busca_articulo(r) for r in renglones],
+              sugerencias=sugerencias_de(da, {"Producto": "PRODUCTO", "Marca": "MARCA", "Proveedor": "PROV_CORTO",
+                                              "Inventario": "INVENTARIO", "Artículo": "ARTICULO"}))
 if sel_inv:
     st.write("")
     barra_seleccion("prod", [sel_inv], ["sel_inv"])
-
-st.write("")
-with tarjeta(f"Artículos de {titulo_art}", "pd_tabla", "Presentación, inventario, cobertura y costo de cada artículo.",
-             extra=f"{n_art(da):,} artículos"):
-    renglones = list(da.sort_values(["ARTICULO", "ART_ID"]).itertuples())
-    filas = [[f"{escape(r.ARTICULO)}<small>ART. {escape(r.ART_ID)}</small>", escape(r.MARCA),
-              escape(r.PRESENTACION), escape(r.PROV_CORTO),
-              chip(r.INVENTARIO, COLOR_INV.get(r.INVENTARIO, T["texto3"])),
-              "Nacional" if r.ALCANCE == "Nacional" else escape(r.COBERTURA), dinero(r.COSTO_UNIT)]
-             for r in renglones]
-    tabla(["Artículo", "Marca", "Presentación", "Proveedor", "Inventario", "Cobertura", "Costo unitario"],
-          filas, numericas=(6,), alto=440, buscar="Buscar artículo, clave, marca, proveedor…",
-          busca_extra=[busca_articulo(r) for r in renglones],
-          sugerencias=sugerencias_de(da, {"Marca": "MARCA", "Proveedor": "PROV_CORTO", "Inventario": "INVENTARIO",
-                                          "Artículo": "ARTICULO"}))
 
 # ──────────────────────────────────────────────────────────────
 # UNIDADES OPERATIVAS: mapa y dona de productos en una tarjeta, regiones como botones y artículos de la región
