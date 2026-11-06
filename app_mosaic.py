@@ -939,6 +939,9 @@ BUSCADOR_JS = """<script>
     });
     cerrar();
     lista.hidden = total === 0;
+    // Al escribir, la primera coincidencia queda marcada: Enter la elige y las flechas se mueven desde ahí
+    const prim = q && lista.querySelector("li.op:not([hidden])");
+    if (prim) prim.classList.add("activa");
   };
   const elegir = (caja, li) => {
     caja.value = li.dataset.v;
@@ -994,9 +997,10 @@ BUSCADOR_JS = """<script>
       i = (i + (e.key === "ArrowDown" ? 1 : vis.length - 1 + (0 > i ? 1 : 0))) % vis.length;
       vis[i].classList.add("activa");
       vis[i].scrollIntoView({block: "nearest"});
-    } else if (e.key === "Enter" && i >= 0) {
+    } else if (e.key === "Enter" && vis.length) {
+      // Sin opción marcada con las flechas, Enter elige la primera coincidencia
       e.preventDefault();
-      elegir(caja, vis[i]);
+      elegir(caja, vis[Math.max(i, 0)]);
     } else if (e.key === "Escape") {
       lista.hidden = true;
     }
