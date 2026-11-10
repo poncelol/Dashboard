@@ -565,11 +565,11 @@ details.kpi-det .nombres li.vacio { color: var(--tenue); font-style: italic; bor
 .hero .marca { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .hero .marca svg { flex-shrink: 0; }
 .hero .marca .sep { width: 1px; align-self: stretch; background: rgb(255 255 255 / .45); }
-.hero .marca .gob { font-size: .95rem; letter-spacing: .04em; color: #fff; line-height: 1.25; }
+.hero .marca .gob { font-size: 1.3rem; letter-spacing: .02em; color: #fff; line-height: 1.1; }
 .hero .marca .gob b { font-weight: 800; }
 /* Jerarquía de mayor a menor: Dirección → Gerencia → Subgerencia */
-.hero h1 { font-size: .95rem !important; font-weight: 800 !important; letter-spacing: .04em; color: #fff !important; margin: 4px 0 0 0;
-  padding: 0 !important; line-height: 1.25; }
+.hero h1 { font-size: 2.3rem !important; font-weight: 700 !important; color: #fff !important; margin: 4px 0 0 0;
+  padding: 0 !important; line-height: 1.2; }
 .hero .gerencia { margin: 6px 0 0 0; font-size: 1.45rem; font-weight: 600; color: rgb(255 255 255 / .95); line-height: 1.25; }
 .hero .subgerencia { margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 700; color: var(--dorado); line-height: 1.3; }
 .hero .fecha { margin: 14px 0 8px 0; font-size: .82rem; color: rgb(255 255 255 / .75); }
@@ -786,7 +786,7 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
   .kpis { grid-template-columns: repeat(2, 1fr); gap: 16px; }
 }
 @media (max-width: 900px) {
-
+  .hero h1 { font-size: 1.9rem !important; }
   .hero .gerencia { font-size: 1.25rem; }
 }
 @media (max-width: 640px) {
@@ -794,7 +794,7 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
   /* En celular el interruptor baja a su propio renglón y el texto usa todo el ancho */
   .st-key-hero { padding: 12px 0 20px 0 !important; margin-bottom: 18px; flex-wrap: wrap !important; row-gap: 6px; }
   .st-key-actualizar button span[data-testid="stMarkdownContainer"] { display: none; }
-
+  .hero h1 { font-size: 1.6rem !important; }
   .hero .gerencia { font-size: 1.1rem; }
   .hero .subgerencia { font-size: .95rem; }
   .banner, .banner.dos { grid-template-columns: minmax(0, 1fr); gap: 12px; }
@@ -1497,7 +1497,7 @@ def barra_seleccion(clave, partes, limpiar):
 # ──────────────────────────────────────────────────────────────
 with st.container(key="hero", horizontal=True, vertical_alignment="top", gap="medium"):
     md(f'<div class="hero"><div class="marca">{LOGO}<span class="sep"></span>'
-       f'<div class="gob"><b>Alimentación para el Bienestar</b></div></div>'
+       f'<div class="gob"><b>Alimentación para el<br>Bienestar</b></div></div>'
        f'<h1>Dirección Comercial</h1>'
        f'<div class="gerencia">Gerencia de Abasto de Grano y Abarrotes</div>'
        f'<div class="subgerencia">Subgerencia de Abarrotes</div>'
