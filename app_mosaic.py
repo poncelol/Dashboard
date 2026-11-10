@@ -571,7 +571,7 @@ details.kpi-det .nombres li.vacio { color: var(--tenue); font-style: italic; bor
 .hero h1 { font-size: 2.3rem !important; font-weight: 700 !important; color: #fff !important; margin: 4px 0 0 0;
   padding: 0 !important; line-height: 1.2; }
 .hero .gerencia { margin: 6px 0 0 0; font-size: 1.45rem; font-weight: 600; color: rgb(255 255 255 / .95); line-height: 1.25; }
-.hero .subgerencia { margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 500; color: var(--dorado); line-height: 1.3; }
+.hero .subgerencia { margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 700; color: var(--dorado); line-height: 1.3; }
 .hero .fecha { margin: 14px 0 8px 0; font-size: .82rem; color: rgb(255 255 255 / .75); }
 /* Controles del encabezado: interruptor de modo oscuro y actualizar datos, en blanco sobre la banda */
 .st-key-controles { flex: 0 0 auto; align-items: flex-end; }
