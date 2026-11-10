@@ -567,11 +567,11 @@ details.kpi-det .nombres li.vacio { color: var(--tenue); font-style: italic; bor
 .hero .marca .sep { width: 1px; align-self: stretch; background: rgb(255 255 255 / .45); }
 .hero .marca .gob { font-size: .95rem; letter-spacing: .04em; color: #fff; line-height: 1.25; }
 .hero .marca .gob b { font-weight: 800; }
-.hero .marca .dep { display: block; font-size: .82rem; color: rgb(255 255 255 / .9); letter-spacing: 0; }
-.hero .eyebrow { font-size: .78rem; font-weight: 700; letter-spacing: .12em; color: var(--dorado); text-transform: uppercase; }
+/* Jerarquía de mayor a menor: Dirección → Gerencia → Subgerencia */
 .hero h1 { font-size: 2.3rem !important; font-weight: 700 !important; color: #fff !important; margin: 4px 0 0 0;
   padding: 0 !important; line-height: 1.2; }
-.hero p { margin: 6px 0 0 0; font-size: 1.05rem; color: rgb(255 255 255 / .92) !important; }
+.hero .gerencia { margin: 6px 0 0 0; font-size: 1.45rem; font-weight: 600; color: rgb(255 255 255 / .95); line-height: 1.25; }
+.hero .subgerencia { margin: 4px 0 0 0; font-size: 1.1rem; font-weight: 500; color: var(--dorado); line-height: 1.3; }
 .hero .fecha { margin: 14px 0 8px 0; font-size: .82rem; color: rgb(255 255 255 / .75); }
 /* Controles del encabezado: interruptor de modo oscuro y actualizar datos, en blanco sobre la banda */
 .st-key-controles { flex: 0 0 auto; align-items: flex-end; }
@@ -787,6 +787,7 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
 }
 @media (max-width: 900px) {
   .hero h1 { font-size: 1.9rem !important; }
+  .hero .gerencia { font-size: 1.25rem; }
 }
 @media (max-width: 640px) {
   .block-container { padding-left: 1rem !important; padding-right: 1rem !important; }
@@ -794,7 +795,8 @@ div[class*="st-key-sel_bar"] button * { color: inherit !important; }
   .st-key-hero { padding: 12px 0 20px 0 !important; margin-bottom: 18px; flex-wrap: wrap !important; row-gap: 6px; }
   .st-key-actualizar button span[data-testid="stMarkdownContainer"] { display: none; }
   .hero h1 { font-size: 1.6rem !important; }
-  .hero p { font-size: .95rem; }
+  .hero .gerencia { font-size: 1.1rem; }
+  .hero .subgerencia { font-size: .95rem; }
   .banner, .banner.dos { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   /* Una sola columna: el título del recuadro puede ocupar dos renglones en vez de cortarse */
   details.kpi-det .l { white-space: normal; font-size: 1rem !important; }
@@ -1495,9 +1497,10 @@ def barra_seleccion(clave, partes, limpiar):
 # ──────────────────────────────────────────────────────────────
 with st.container(key="hero", horizontal=True, vertical_alignment="top", gap="medium"):
     md(f'<div class="hero"><div class="marca">{LOGO}<span class="sep"></span>'
-       f'<div class="gob"><b>Alimentación para el Bienestar</b><span class="dep">Dirección Comercial</span></div></div>'
-       f'<div class="eyebrow">Programa de Abasto Rural 2026</div><h1>Subgerencia de Abarrotes</h1>'
-       f'<p>Resumen del catálogo de artículos vigentes · proveedores, productos, marcas y unidades operativas</p>'
+       f'<div class="gob"><b>Alimentación para el Bienestar</b></div></div>'
+       f'<h1>Dirección Comercial</h1>'
+       f'<div class="gerencia">Gerencia de Abasto de Grano y Abarrotes</div>'
+       f'<div class="subgerencia">Subgerencia de Abarrotes</div>'
        f'<div class="fecha">Información al {fecha_larga(hoy)} · {origen}</div></div>')
     with st.container(key="controles", width="content", gap="small"):
         st.toggle(":material/dark_mode: Modo oscuro", key="oscuro")
