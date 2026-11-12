@@ -1501,7 +1501,7 @@ with st.container(key="hero", horizontal=True, vertical_alignment="top", gap="me
     md(f'<div class="hero"><div class="marca">{LOGO}<span class="sep"></span>'
        f'<div class="gob"><b>Alimentación para el Bienestar</b></div></div>'
        f'<h1>Dirección Comercial</h1>'
-       f'<div class="gerencia">Gerencia de Abasto de Grano y Abarrotes</div>'
+       f'<div class="gerencia">Gerencia de Abasto de Granos y Abarrotes</div>'
        f'<div class="subgerencia">Subgerencia de Abarrotes</div>'
        f'<div class="fecha">Información al {fecha_larga(hoy)} · {origen}</div></div>')
     with st.container(key="controles", width="content", gap="small"):
