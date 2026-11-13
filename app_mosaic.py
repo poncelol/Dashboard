@@ -1604,7 +1604,8 @@ with st.container():
         for (cve, hoja), g in (datos.drop_duplicates(["CVE", "HOJA", "ART_ID"])
                                .sort_values(["HOJA", "ARTICULO"]).groupby(["CVE", "HOJA"], dropna=False)):
             items = "".join(f'<li><span class="costo">{dinero(a.COSTO_CAJA)}</span>{escape(a.ARTICULO)}'
-                            f'<small>{escape(a.MARCA)} · {escape(a.PRESENTACION)} · {escape(a.INVENTARIO)}</small></li>'
+                            f'<small>{escape(a.MARCA)} · {escape(a.PRESENTACION)} · {escape(a.INVENTARIO)} · '
+                            f'Impuesto: {escape(a.IMPUESTO)}</small></li>'
                             for a in g.itertuples())
             bloques = por_hoja.setdefault(cve, [])
             color = T["paleta"][len(bloques) % len(T["paleta"])]
@@ -1651,19 +1652,22 @@ with i:
 with a:
     # Listado independiente de los productos: solo lo filtra el tipo de inventario; se busca como en Proveedores
     with tarjeta("Artículos" + (f" · {sel_inv}" if sel_inv else ""), "pd_tabla",
-                 "Producto, presentación, inventario, cobertura y costo de cada artículo.",
+                 "Producto, presentación, inventario, cobertura, impuesto y costo de cada artículo.",
                  extra=[f"{n_art(da):,} artículos", f"{da['PROD'].nunique():,} productos"]):
         renglones = list(da.sort_values(["PRODUCTO", "ARTICULO", "ART_ID"]).itertuples())
         filas = [[f"{escape(r.ARTICULO)}<small>ART. {escape(r.ART_ID)}</small>", escape(r.PRODUCTO), escape(r.MARCA),
                   escape(r.PRESENTACION), escape(r.PROV_CORTO),
                   chip(r.INVENTARIO, COLOR_INV.get(r.INVENTARIO, T["texto3"])),
-                  "Nacional" if r.ALCANCE == "Nacional" else escape(r.COBERTURA), dinero(r.COSTO_UNIT)]
+                  "Nacional" if r.ALCANCE == "Nacional" else escape(r.COBERTURA), escape(r.IMPUESTO),
+                  dinero(r.COSTO_UNIT)]
                  for r in renglones]
-        tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Cobertura", "Costo unitario"],
-              filas, numericas=(7,), alto=470, buscar="Buscar artículo, clave, producto, marca, proveedor…",
+        tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Cobertura", "Impuesto",
+               "Costo unitario"],
+              filas, numericas=(8,), alto=470, buscar="Buscar artículo, clave, producto, marca, proveedor…",
               busca_extra=[busca_articulo(r) for r in renglones],
               sugerencias=sugerencias_de(da, {"Producto": "PRODUCTO", "Marca": "MARCA", "Proveedor": "PROV_CORTO",
-                                              "Inventario": "INVENTARIO", "Artículo": "ARTICULO"}))
+                                              "Inventario": "INVENTARIO", "Impuesto": "IMPUESTO",
+                                              "Artículo": "ARTICULO"}))
 if sel_inv:
     st.write("")
     barra_seleccion("prod", [sel_inv], ["sel_inv"])
@@ -1677,14 +1681,14 @@ info_reg = estrellas_region(datos)
 sel_reg = st.session_state.get("sel_region")
 sel_reg = sel_reg if sel_reg in REGIONES or sel_reg == NAL else None
 clave_up = f"sel_uprod_{sel_reg or 'todas'}"
-regional = datos[datos["ALCANCE"] == "Regional"]
+# Los artículos nacionales llegan a todo el país: aparecen en cada región junto con los regionales que la cubren
 if sel_reg == NAL:
     d_reg = datos[datos["ALCANCE"] == "Nacional"]
 elif sel_reg:
-    d_reg = regional[regional["REGIONES"].map(lambda r: sel_reg in r)]
+    d_reg = datos[datos["REGIONES"].map(lambda r: sel_reg in r)]
 else:
-    d_reg = regional
-tipo_art = "nacionales" if sel_reg == NAL else "regionales"
+    d_reg = datos[datos["ALCANCE"].isin(["Nacional", "Regional"])]
+tipo_art = "nacionales" if sel_reg == NAL else "nacionales y regionales"
 sel_up = st.session_state.get(clave_up)
 sel_up = sel_up if sel_up in set(d_reg["PRODUCTO"]) else None
 nombre_reg = ("Nacional" if sel_reg == NAL else f"{sel_reg} · {REGIONES[sel_reg][0]}" if sel_reg
@@ -1711,7 +1715,7 @@ with a:
             mapa(info_reg, "u_mapa_g", resaltar=sel_reg, alto=430)
         with d:
             if d_reg.empty:
-                md('<div class="lb-mas">Esta región no tiene artículos regionales.</div>')
+                md('<div class="lb-mas">Esta región no tiene artículos.</div>')
             else:
                 # Todos los productos, sin agrupar en «Otros»; al centro, cuántos productos son
                 dona_clic(g, f"u_dona_{sel_reg or 'todas'}", clave_up, alto=230, max_items=len(g), agrupar=False,
@@ -1737,17 +1741,21 @@ st.write("")
 da_reg = d_reg[d_reg["PRODUCTO"] == sel_up] if sel_up else d_reg
 with tarjeta(f"Artículos {tipo_art} · {nombre_reg}" + (f" · {sel_up}" if sel_up else ""), "u_tabla",
              "Artículos con cobertura nacional: llegan a todas las regiones." if sel_reg == NAL else
-             "Artículos con cobertura regional que llegan a esta región (los nacionales llegan a todas).",
+             "Artículos que llegan a esta región: los de cobertura nacional (llegan a todas) y los regionales "
+             "que la cubren.",
              extra=f"{n_art(da_reg):,} artículos"):
     renglones = list(da_reg.sort_values(["PRODUCTO", "ARTICULO", "ART_ID"]).itertuples())
     filas = [[f"{escape(r.ARTICULO)}<small>ART. {escape(r.ART_ID)}</small>", escape(r.PRODUCTO), escape(r.MARCA),
               escape(r.PRESENTACION), escape(r.PROV_CORTO), chip(r.INVENTARIO, COLOR_INV.get(r.INVENTARIO, T["texto3"])),
-              "Nacional" if r.ALCANCE == "Nacional" else escape(" ".join(r.REGIONES)), dinero(r.COSTO_UNIT)]
+              "Nacional" if r.ALCANCE == "Nacional" else escape(" ".join(r.REGIONES)), escape(r.IMPUESTO),
+              dinero(r.COSTO_UNIT)]
              for r in renglones]
-    tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Regiones", "Costo unitario"],
-          filas, numericas=(7,), alto=440, buscar="Buscar artículo, clave, producto, marca, proveedor…",
+    tabla(["Artículo", "Producto", "Marca", "Presentación", "Proveedor", "Inventario", "Regiones", "Impuesto",
+           "Costo unitario"],
+          filas, numericas=(8,), alto=440, buscar="Buscar artículo, clave, producto, marca, proveedor…",
           busca_extra=[busca_articulo(r) for r in renglones],
           sugerencias=sugerencias_de(da_reg, {"Producto": "PRODUCTO", "Marca": "MARCA", "Proveedor": "PROV_CORTO",
-                                              "Inventario": "INVENTARIO", "Artículo": "ARTICULO"}))
+                                              "Inventario": "INVENTARIO", "Impuesto": "IMPUESTO",
+                                              "Artículo": "ARTICULO"}))
 
 md('<div class="pie">Subgerencia de Abarrotes · Dirección Comercial · Alimentación para el Bienestar</div>')
